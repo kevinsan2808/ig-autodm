@@ -99,7 +99,20 @@
     <label>Persona — how you sound (tone, style, who you are)</label>
     <textarea id="aiPersona" style="min-height:80px" onchange="rules.ai.persona=this.value"></textarea>
     <label>🎯 Goal — what each conversation should achieve, step by step</label>
-    <textarea id="aiGoal" style="min-height:110px" placeholder="e.g. Find out what they want → tell them I can point them to a trusted source → share my link and invite them to follow. One step at a time." onchange="rules.ai.goal=this.value"></textarea>
+    <textarea id="aiGoal" style="min-height:110px" placeholder="e.g. Help them first → get to know them → casually mention what I do → invite them to follow & repost. One step at a time, never hard-sell." onchange="rules.ai.goal=this.value"></textarea>
+    <label class="row" style="align-items:center;gap:8px;color:var(--text)">
+      <input type="checkbox" id="aiDelayOn" style="width:auto" onchange="rules.ai.humanDelay.enabled=this.checked"> ⏳ Reply like a human (wait a bit before answering, so it doesn't feel like a bot)
+    </label>
+    <div class="grid2">
+      <div>
+        <label>Min wait (seconds)</label>
+        <input type="text" id="aiDelayMin" placeholder="40" onchange="rules.ai.humanDelay.minSec=parseInt(this.value)||0">
+      </div>
+      <div>
+        <label>Max wait (seconds)</label>
+        <input type="text" id="aiDelayMax" placeholder="180" onchange="rules.ai.humanDelay.maxSec=parseInt(this.value)||0">
+      </div>
+    </div>
   </div>
 
   <h2>💬 Comment rules — when someone comments on your posts</h2>
@@ -252,6 +265,13 @@ function renderAi() {
   if (document.activeElement !== model) model.value = rules.ai.model || '';
   if (document.activeElement !== persona) persona.value = rules.ai.persona || '';
   if (goal && document.activeElement !== goal) goal.value = rules.ai.goal || '';
+  if (!rules.ai.humanDelay) rules.ai.humanDelay = { enabled: true, minSec: 40, maxSec: 180 };
+  const dOn = document.getElementById('aiDelayOn');
+  const dMin = document.getElementById('aiDelayMin');
+  const dMax = document.getElementById('aiDelayMax');
+  if (dOn) dOn.checked = rules.ai.humanDelay.enabled !== false;
+  if (dMin && document.activeElement !== dMin) dMin.value = rules.ai.humanDelay.minSec ?? 40;
+  if (dMax && document.activeElement !== dMax) dMax.value = rules.ai.humanDelay.maxSec ?? 180;
 }
 
 function toggleAi() {

@@ -1,29 +1,20 @@
 {
   "ai": {
-    "enabled": false,
+    "enabled": true,
     "model": "gemini-3.6-flash",
-    "persona": "You are the friendly assistant replying on behalf of an Instagram creator in the reps/dupes (China-factory dupe) niche. Talk like a real person texting a friend — casual, warm, a bit playful. Answer their real question first, never sound like a pushy salesperson.",
-    "goal": "Introduce what I do (I share where to find high-quality China-factory reps/dupes at a fraction of retail). Over the chat, naturally: 1) find out what item they're looking for, 2) tell them I can point them to a trusted source, 3) share my link https://example.com and invite them to follow for more finds. Move one step at a time, don't dump everything in the first message."
+    "persona": "You ARE @stayfocusedhuy — a real person, not an assistant. You make content about finding quality China-factory reps/dupes and fragrances. Text like a real person messaging a friend: warm, genuine, curious about them, a bit playful. Keep it short, casual and human. You love helping people and building real connections — money is never the point of the chat.",
+    "goal": "Play the long game and build a genuine friendship. 1) Help them first and get to know them. 2) When it fits naturally, casually mention what I do so they know me — never a pitch. 3) If the vibe is good, invite them to follow me and repost my videos so we stay connected. Make them feel helped and come away liking me, so we become a real connection and maybe a partner down the line. Never hard-sell, never rush, always give more than you ask.",
+    "humanDelay": { "enabled": true, "minSec": 40, "maxSec": 180 }
   },
   "commentRules": [
     {
-      "name": "LINK keyword",
-      "keyword": "LINK",
-      "matchType": "contains",
-      "dmMessage": "Hey {{username}}! 👋 Here's the link you asked for 👉 https://example.com",
-      "publicReply": "Just sent it to your DMs! 📩",
-      "mediaId": "",
-      "useAi": false,
-      "enabled": true
-    },
-    {
-      "name": "Reply to EVERY comment (catch-all)",
+      "name": "Reply to every comment (AI)",
       "keyword": "",
       "matchType": "any",
-      "dmMessage": "Thanks for commenting, {{username}}! 🔥 Here's my link: https://example.com",
+      "dmMessage": "Reply warmly to their comment and start a real, friendly conversation.",
       "publicReply": "",
       "mediaId": "",
-      "useAi": false,
+      "useAi": true,
       "enabled": false
     }
   ],
@@ -32,9 +23,9 @@
       "name": "AI assistant — answer every DM",
       "keyword": "",
       "matchType": "any",
-      "reply": "Always be helpful and, when it fits, share my link https://example.com and invite them to follow.",
+      "reply": "Reply naturally and helpfully, following my persona and goal.",
       "useAi": true,
-      "enabled": false
+      "enabled": true
     }
   ]
 }

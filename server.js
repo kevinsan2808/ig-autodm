@@ -34,6 +34,24 @@ function normalizeRules() {
   if (!rules.ai.model) rules.ai.model = 'gemini-3.6-flash';
   if (!rules.ai.persona) rules.ai.persona = DEFAULT_PERSONA;
   if (typeof rules.ai.goal !== 'string') rules.ai.goal = '';
+  if (!rules.ai.humanDelay || typeof rules.ai.humanDelay !== 'object') rules.ai.humanDelay = {};
+  if (typeof rules.ai.humanDelay.enabled !== 'boolean') rules.ai.humanDelay.enabled = true;
+  if (typeof rules.ai.humanDelay.minSec !== 'number') rules.ai.humanDelay.minSec = 40;
+  if (typeof rules.ai.humanDelay.maxSec !== 'number') rules.ai.humanDelay.maxSec = 180;
+}
+
+function sleep(ms) {
+  return new Promise((r) => setTimeout(r, ms));
+}
+
+// Wait a random human-like pause before replying (so it never feels like an instant bot).
+async function humanPause() {
+  const d = rules.ai && rules.ai.humanDelay;
+  if (!d || !d.enabled) return;
+  const min = Math.max(0, d.minSec || 0);
+  const max = Math.max(min, d.maxSec || min);
+  const secs = min + Math.random() * (max - min);
+  if (secs > 0) await sleep(secs * 1000);
 }
 
 function loadRules() {
@@ -195,11 +213,16 @@ async function aiReply({ history, username, instruction }) {
   const system =
     `${persona}\n\n` +
     (goal ? `Your goal across the whole conversation:\n${goal}\n\n` : '') +
+    'How to steer every conversation:\n' +
+    '- First, genuinely read and respond to what they actually said — never ignore it, or you sound like a robot.\n' +
+    '- Then, no matter what topic they bring up, smoothly bridge back toward the goal. Acknowledge their point, then connect it to what you offer. Always be moving the conversation one small step closer to the goal.\n' +
+    '- Be persuasive the natural way: ask questions, spark curiosity, relate to them, highlight what is in it for them. Never beg, never hard-sell, never sound scripted.\n' +
+    '- If they resist or go cold, do not push harder — stay friendly, plant one hook, and leave the door open.\n\n' +
     'Hard rules for every reply:\n' +
     '- Reply in the SAME language the person wrote in.\n' +
-    '- Sound like a real person texting: short, natural, casual. Usually 1-2 sentences.\n' +
-    '- Use the conversation history: never repeat something you already said, and move the goal forward one small step at a time — do not dump everything at once.\n' +
-    '- Only share a link or an offer when it fits naturally in the flow.\n' +
+    '- Sound like a real person texting a friend: short, natural, casual. Usually 1-2 sentences.\n' +
+    '- Use the conversation history: never repeat yourself, and advance the goal step by step — do not dump everything at once.\n' +
+    '- Only share a link or an offer once it fits naturally, ideally after they show some interest.\n' +
     '- Never reveal that you are an AI or an automated bot; you ARE the creator.\n' +
     '- Do not invent facts, prices, or promises you were not given.\n' +
     `- The person's username is @${username || 'there'}.` +
@@ -295,6 +318,7 @@ async function handleComment(value) {
     try {
       const dmText = await resolveReply(rule, 'dmMessage', { incoming: text, username });
       if (dmText) {
+        if (aiOn) await humanPause(); // human-like pause before the DM lands
         await sendPrivateReply(commentId, dmText);
         log('dm', `DM sent to @${username || from.id} (rule "${rule.name || rule.keyword || 'catch-all'}"${aiOn ? ', AI' : ''})`);
       }
@@ -332,6 +356,7 @@ async function handleMessage(event) {
       history: aiOn ? convoHistory(senderId) : null,
     });
     if (!replyText) return;
+    if (aiOn) await humanPause(); // human-like pause so it doesn't feel like an instant bot
     await sendDM(senderId, replyText);
     if (aiOn) convoPush(senderId, 'assistant', replyText);
     log('dm', `Auto-replied to DM from @${username || senderId} (rule "${rule.name || rule.keyword || 'catch-all'}"${aiOn ? ', AI' : ''})`);
