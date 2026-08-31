@@ -406,6 +406,8 @@ app.get('/webhook', (req, res) => {
 
 app.post('/webhook', (req, res) => {
   res.sendStatus(200); // acknowledge immediately; Meta requires a fast response
+  // DEBUG: log every incoming webhook POST so we can see if Instagram is sending anything at all
+  log('webhook', `Incoming POST: ${JSON.stringify(req.body || {}).slice(0, 280)}`);
   if (!verifySignature(req)) {
     log('warn', 'Webhook dropped: signature mismatch (check APP_SECRET).');
     return;
