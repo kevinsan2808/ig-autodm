@@ -1,0 +1,40 @@
+{
+  "ai": {
+    "enabled": false,
+    "model": "gemini-3.6-flash",
+    "persona": "You are the friendly assistant replying on behalf of an Instagram creator in the reps/dupes (China-factory dupe) niche. Talk like a real person texting a friend — casual, warm, a bit playful. Answer their real question first, never sound like a pushy salesperson.",
+    "goal": "Introduce what I do (I share where to find high-quality China-factory reps/dupes at a fraction of retail). Over the chat, naturally: 1) find out what item they're looking for, 2) tell them I can point them to a trusted source, 3) share my link https://example.com and invite them to follow for more finds. Move one step at a time, don't dump everything in the first message."
+  },
+  "commentRules": [
+    {
+      "name": "LINK keyword",
+      "keyword": "LINK",
+      "matchType": "contains",
+      "dmMessage": "Hey {{username}}! 👋 Here's the link you asked for 👉 https://example.com",
+      "publicReply": "Just sent it to your DMs! 📩",
+      "mediaId": "",
+      "useAi": false,
+      "enabled": true
+    },
+    {
+      "name": "Reply to EVERY comment (catch-all)",
+      "keyword": "",
+      "matchType": "any",
+      "dmMessage": "Thanks for commenting, {{username}}! 🔥 Here's my link: https://example.com",
+      "publicReply": "",
+      "mediaId": "",
+      "useAi": false,
+      "enabled": false
+    }
+  ],
+  "dmRules": [
+    {
+      "name": "AI assistant — answer every DM",
+      "keyword": "",
+      "matchType": "any",
+      "reply": "Always be helpful and, when it fits, share my link https://example.com and invite them to follow.",
+      "useAi": true,
+      "enabled": false
+    }
+  ]
+}

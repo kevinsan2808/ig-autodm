@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AutoDM — Instagram Automation</title>
+<style>
+  :root {
+    --bg: #0f1117; --card: #181b24; --border: #2a2f3d;
+    --text: #e8eaf0; --muted: #8b91a3; --accent: #e1306c;
+    --green: #34c77b; --red: #ff5c5c; --yellow: #f2b134;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); }
+  .wrap { max-width: 860px; margin: 0 auto; padding: 24px 16px 80px; }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  h1 span { color: var(--accent); }
+  .sub { color: var(--muted); font-size: 13px; margin-bottom: 24px; }
+  h2 { font-size: 15px; margin: 28px 0 10px; }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 16px; margin-bottom: 12px; }
+  label { display: block; font-size: 12px; color: var(--muted); margin: 10px 0 4px; }
+  input[type=text], input[type=password], textarea, select {
+    width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
+    color: var(--text); padding: 9px 10px; font-size: 14px; font-family: inherit;
+  }
+  textarea { min-height: 60px; resize: vertical; }
+  button {
+    background: var(--accent); color: #fff; border: 0; border-radius: 8px;
+    padding: 10px 18px; font-size: 14px; font-weight: 600; cursor: pointer;
+  }
+  button.secondary { background: transparent; border: 1px solid var(--border); color: var(--text); }
+  button.small { padding: 6px 12px; font-size: 12px; }
+  button.danger { background: transparent; border: 1px solid var(--red); color: var(--red); }
+  .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .rule-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+  .badge { font-size: 11px; padding: 3px 9px; border-radius: 20px; border: 1px solid var(--border); color: var(--muted); }
+  .badge.on { color: var(--green); border-color: var(--green); }
+  .status-dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 6px; }
+  .toolbar { position: fixed; bottom: 0; left: 0; right: 0; background: var(--card); border-top: 1px solid var(--border); padding: 12px 16px; }
+  .toolbar-inner { max-width: 860px; margin: 0 auto; display: flex; gap: 10px; align-items: center; }
+  .toolbar .msg { color: var(--muted); font-size: 13px; }
+  .log { font-size: 12px; font-family: ui-monospace, Menlo, monospace; max-height: 260px; overflow-y: auto; }
+  .log div { padding: 3px 0; border-bottom: 1px solid var(--border); color: var(--muted); }
+  .log .t-dm { color: var(--green); }
+  .log .t-reply { color: var(--green); }
+  .log .t-error { color: var(--red); }
+  .log .t-warn { color: var(--yellow); }
+  .hint { font-size: 12px; color: var(--muted); margin-top: 6px; }
+  .login { max-width: 360px; margin: 15vh auto; }
+  .hidden { display: none; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  @media (max-width: 600px) { .grid2 { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+
+<div id="login" class="login card">
+  <h1>Auto<span>DM</span></h1>
+  <p class="sub">Enter your dashboard password</p>
+  <input type="password" id="pw" placeholder="Password" onkeydown="if(event.key==='Enter')doLogin()">
+  <div style="margin-top:12px"><button onclick="doLogin()">Log in</button></div>
+  <p id="loginErr" class="hint" style="color:var(--red)"></p>
+</div>
+
+<div id="app" class="wrap hidden">
+  <h1>Auto<span>DM</span></h1>
+  <p class="sub">Your self-hosted Instagram comment-to-DM automation</p>
+
+  <div class="card">
+    <div class="row" style="justify-content:space-between">
+      <div id="connStatus"><span class="status-dot" style="background:var(--muted)"></span>Checking connection…</div>
+      <div class="row">
+        <button class="small secondary" onclick="reconnect()">Reconnect</button>
+        <button class="small secondary" onclick="subscribe()">Activate webhooks</button>
+      </div>
+    </div>
+    <p class="hint">After first deploy: click <b>Activate webhooks</b> once so Instagram starts sending your comments &amp; DMs here.</p>
+  </div>
+
+  <h2>🤖 AI replies</h2>
+  <div class="card" id="aiCard">
+    <div class="rule-head">
+      <div>
+        <b>Smart replies with Gemini</b>
+        <p class="hint" style="margin:4px 0 0">When a rule has <b>Use AI</b> ticked, the bot writes a natural reply instead of sending the fixed text. It answers in the person's own language.</p>
+      </div>
+      <div class="row">
+        <span class="badge" id="aiBadge">OFF</span>
+        <button class="small secondary" id="aiToggleBtn" onclick="toggleAi()">Turn on</button>
+      </div>
+    </div>
+    <p class="hint" id="aiKeyHint" style="color:var(--yellow)"></p>
+    <div class="grid2">
+      <div>
+        <label>Model</label>
+        <input type="text" id="aiModel" placeholder="gemini-3.6-flash" onchange="rules.ai.model=this.value">
+      </div>
+    </div>
+    <label>Persona — how you sound (tone, style, who you are)</label>
+    <textarea id="aiPersona" style="min-height:80px" onchange="rules.ai.persona=this.value"></textarea>
+    <label>🎯 Goal — what each conversation should achieve, step by step</label>
+    <textarea id="aiGoal" style="min-height:110px" placeholder="e.g. Find out what they want → tell them I can point them to a trusted source → share my link and invite them to follow. One step at a time." onchange="rules.ai.goal=this.value"></textarea>
+  </div>
+
+  <h2>💬 Comment rules — when someone comments on your posts</h2>
+  <div id="commentRules"></div>
+  <button class="small secondary" onclick="addRule('comment')">+ Add comment rule</button>
+
+  <h2>📩 DM rules — when someone sends you a message</h2>
+  <div id="dmRules"></div>
+  <button class="small secondary" onclick="addRule('dm')">+ Add DM rule</button>
+
+  <h2>📜 Recent activity</h2>
+  <div class="card log" id="activity">Loading…</div>
+  <button class="small secondary" onclick="loadStatus()">Refresh activity</button>
+
+  <h2>🧰 Backup</h2>
+  <div class="card">
+    <p class="hint" style="margin-top:0">Free hosting can reset files on redeploy. After changing rules, copy this backup and paste it into the <b>RULES_JSON</b> environment variable on Render so your rules always survive restarts.</p>
+    <button class="small secondary" onclick="copyBackup()">Copy rules backup</button>
+    <span id="copyMsg" class="hint"></span>
+  </div>
+</div>
+
+<div class="toolbar hidden" id="toolbar">
+  <div class="toolbar-inner">
+    <button onclick="save()">💾 Save rules</button>
+    <span class="msg" id="saveMsg"></span>
+  </div>
+</div>
+
+<script>
+let rules = { commentRules: [], dmRules: [] };
+const pwKey = 'autodm_pw';
+
+function headers() {
+  return { 'Content-Type': 'application/json', 'x-dashboard-password': localStorage.getItem(pwKey) || '' };
+}
+
+async function doLogin() {
+  localStorage.setItem(pwKey, document.getElementById('pw').value);
+  const ok = await tryLoad();
+  if (!ok) document.getElementById('loginErr').textContent = 'Wrong password — try again.';
+}
+
+async function tryLoad() {
+  try {
+    const res = await fetch('/api/rules', { headers: headers() });
+    if (!res.ok) return false;
+    rules = await res.json();
+    document.getElementById('login').classList.add('hidden');
+    document.getElementById('app').classList.remove('hidden');
+    document.getElementById('toolbar').classList.remove('hidden');
+    render();
+    loadStatus();
+    return true;
+  } catch { return false; }
+}
+
+function esc(s) {
+  return (s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
+}
+
+function matchOptions(sel) {
+  const opts = [
+    ['contains', 'Comment contains the keyword'],
+    ['exact', 'Comment is exactly the keyword'],
+    ['any', '⭐ Every comment / message (no keyword needed)'],
+  ];
+  return opts.map(([v, t]) => `<option value="${v}" ${sel===v?'selected':''}>${t}</option>`).join('');
+}
+
+function render() {
+  document.getElementById('commentRules').innerHTML = rules.commentRules.map((r, i) => `
+    <div class="card">
+      <div class="rule-head">
+        <input type="text" style="max-width:260px" value="${esc(r.name)}" placeholder="Rule name"
+          onchange="rules.commentRules[${i}].name=this.value">
+        <div class="row">
+          <span class="badge ${r.enabled!==false?'on':''}">${r.enabled!==false?'ON':'OFF'}</span>
+          <button class="small secondary" onclick="toggle('comment',${i})">${r.enabled!==false?'Turn off':'Turn on'}</button>
+          <button class="small danger" onclick="removeRule('comment',${i})">Delete</button>
+        </div>
+      </div>
+      <div class="grid2">
+        <div>
+          <label>When…</label>
+          <select onchange="rules.commentRules[${i}].matchType=this.value; render()">${matchOptions(r.matchType)}</select>
+        </div>
+        <div>
+          <label>Keyword ${r.matchType==='any'?'(not needed for this mode)':''}</label>
+          <input type="text" value="${esc(r.keyword)}" placeholder="e.g. LINK" ${r.matchType==='any'?'disabled':''}
+            onchange="rules.commentRules[${i}].keyword=this.value">
+        </div>
+      </div>
+      <label class="row" style="align-items:center;gap:8px;color:var(--text)">
+        <input type="checkbox" style="width:auto" ${r.useAi?'checked':''}
+          onchange="rules.commentRules[${i}].useAi=this.checked; render()"> 🤖 Use AI to write the DM
+      </label>
+      <label>${r.useAi ? 'Instructions for the AI (what to tell them, link to include)' : 'DM to send them ({{username}} = their name)'}</label>
+      <textarea onchange="rules.commentRules[${i}].dmMessage=this.value">${esc(r.dmMessage)}</textarea>
+      <label>Public reply under their comment (optional — leave empty for none)</label>
+      <input type="text" value="${esc(r.publicReply)}" placeholder="e.g. Check your DMs! 📩"
+        onchange="rules.commentRules[${i}].publicReply=this.value">
+      <label>Only for one specific post? (optional — paste the post's media ID, empty = all posts)</label>
+      <input type="text" value="${esc(r.mediaId)}" placeholder="Leave empty for all posts"
+        onchange="rules.commentRules[${i}].mediaId=this.value">
+    </div>`).join('');
+
+  document.getElementById('dmRules').innerHTML = rules.dmRules.map((r, i) => `
+    <div class="card">
+      <div class="rule-head">
+        <input type="text" style="max-width:260px" value="${esc(r.name)}" placeholder="Rule name"
+          onchange="rules.dmRules[${i}].name=this.value">
+        <div class="row">
+          <span class="badge ${r.enabled!==false?'on':''}">${r.enabled!==false?'ON':'OFF'}</span>
+          <button class="small secondary" onclick="toggle('dm',${i})">${r.enabled!==false?'Turn off':'Turn on'}</button>
+          <button class="small danger" onclick="removeRule('dm',${i})">Delete</button>
+        </div>
+      </div>
+      <div class="grid2">
+        <div>
+          <label>When…</label>
+          <select onchange="rules.dmRules[${i}].matchType=this.value; render()">${matchOptions(r.matchType)}</select>
+        </div>
+        <div>
+          <label>Keyword ${r.matchType==='any'?'(not needed for this mode)':''}</label>
+          <input type="text" value="${esc(r.keyword)}" ${r.matchType==='any'?'disabled':''}
+            onchange="rules.dmRules[${i}].keyword=this.value">
+        </div>
+      </div>
+      <label class="row" style="align-items:center;gap:8px;color:var(--text)">
+        <input type="checkbox" style="width:auto" ${r.useAi?'checked':''}
+          onchange="rules.dmRules[${i}].useAi=this.checked; render()"> 🤖 Use AI to write the reply
+      </label>
+      <label>${r.useAi ? 'Instructions for the AI (what to say, link to include)' : 'Auto-reply message ({{username}} = their name)'}</label>
+      <textarea onchange="rules.dmRules[${i}].reply=this.value">${esc(r.reply)}</textarea>
+    </div>`).join('');
+  renderAi();
+}
+
+function renderAi() {
+  if (!rules.ai) rules.ai = { enabled: false, model: 'gemini-3.6-flash', persona: '' };
+  const on = !!rules.ai.enabled;
+  const badge = document.getElementById('aiBadge');
+  badge.textContent = on ? 'ON' : 'OFF';
+  badge.className = 'badge' + (on ? ' on' : '');
+  document.getElementById('aiToggleBtn').textContent = on ? 'Turn off' : 'Turn on';
+  const model = document.getElementById('aiModel');
+  const persona = document.getElementById('aiPersona');
+  const goal = document.getElementById('aiGoal');
+  if (document.activeElement !== model) model.value = rules.ai.model || '';
+  if (document.activeElement !== persona) persona.value = rules.ai.persona || '';
+  if (goal && document.activeElement !== goal) goal.value = rules.ai.goal || '';
+}
+
+function toggleAi() {
+  if (!rules.ai) rules.ai = {};
+  rules.ai.enabled = !rules.ai.enabled;
+  renderAi();
+}
+
+function addRule(kind) {
+  if (kind === 'comment') {
+    rules.commentRules.push({ name: 'New rule', keyword: '', matchType: 'contains', dmMessage: '', publicReply: '', mediaId: '', useAi: false, enabled: true });
+  } else {
+    rules.dmRules.push({ name: 'New rule', keyword: '', matchType: 'contains', reply: '', useAi: false, enabled: true });
+  }
+  render();
+}
+
+function removeRule(kind, i) {
+  (kind === 'comment' ? rules.commentRules : rules.dmRules).splice(i, 1);
+  render();
+}
+
+function toggle(kind, i) {
+  const r = (kind === 'comment' ? rules.commentRules : rules.dmRules)[i];
+  r.enabled = r.enabled === false;
+  render();
+}
+
+async function save() {
+  const msg = document.getElementById('saveMsg');
+  msg.textContent = 'Saving…';
+  const res = await fetch('/api/rules', { method: 'PUT', headers: headers(), body: JSON.stringify(rules) });
+  msg.textContent = res.ok ? '✅ Saved! Rules are live.' : '❌ Save failed — check password.';
+  setTimeout(() => msg.textContent = '', 4000);
+}
+
+async function loadStatus() {
+  const res = await fetch('/api/status', { headers: headers() });
+  if (!res.ok) return;
+  const s = await res.json();
+  const el = document.getElementById('connStatus');
+  if (s.connected) {
+    el.innerHTML = `<span class="status-dot" style="background:var(--green)"></span>Connected as <b>@${esc(s.username)}</b>`;
+  } else if (s.tokenSet) {
+    el.innerHTML = `<span class="status-dot" style="background:var(--yellow)"></span>Token set but not verified — click Reconnect`;
+  } else {
+    el.innerHTML = `<span class="status-dot" style="background:var(--red)"></span>Not connected — set IG_ACCESS_TOKEN (see setup guide)`;
+  }
+  const aiHint = document.getElementById('aiKeyHint');
+  if (aiHint) {
+    aiHint.textContent = s.aiKeySet ? '' : '⚠️ No GEMINI_API_KEY set yet — add it in your Render environment variables, then AI replies will work.';
+  }
+  document.getElementById('activity').innerHTML = (s.activity || []).map(a =>
+    `<div class="t-${a.type}">${a.time.slice(5,19).replace('T',' ')} · ${esc(a.detail)}</div>`
+  ).join('') || '<div>No activity yet — try commenting a keyword on one of your posts!</div>';
+}
+
+async function reconnect() {
+  await fetch('/api/reconnect', { method: 'POST', headers: headers() });
+  loadStatus();
+}
+
+async function subscribe() {
+  const res = await fetch('/api/subscribe', { method: 'POST', headers: headers() });
+  const data = await res.json().catch(() => ({}));
+  alert(res.ok ? '✅ Webhooks activated! Instagram will now send comments & DMs to AutoDM.' : '❌ Failed: ' + (data.error || 'unknown error'));
+  loadStatus();
+}
+
+function copyBackup() {
+  navigator.clipboard.writeText(JSON.stringify(rules));
+  document.getElementById('copyMsg').textContent = '✅ Copied!';
+  setTimeout(() => document.getElementById('copyMsg').textContent = '', 3000);
+}
+
+tryLoad();
+</script>
+</body>
+</html>

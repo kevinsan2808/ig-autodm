@@ -1,0 +1,15 @@
+{
+  "name": "ig-autodm",
+  "version": "1.0.0",
+  "description": "Self-hosted Instagram comment-to-DM automation (ManyChat alternative)",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "express": "^4.19.2"
+  }
+}

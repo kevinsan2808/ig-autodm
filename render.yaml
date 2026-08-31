@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: autodm
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: node server.js
+    envVars:
+      - key: IG_ACCESS_TOKEN
+        sync: false
+      - key: APP_SECRET
+        sync: false
+      - key: VERIFY_TOKEN
+        sync: false
+      - key: DASHBOARD_PASSWORD
+        sync: false
