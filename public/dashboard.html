@@ -296,15 +296,14 @@
       <h2>Chọn video</h2>
       <button class="x" onclick="closePicker()">×</button>
     </div>
-    <p class="muted">Bấm vào video muốn gắn. Chọn "Tất cả video" nếu từ khoá dùng chung.</p>
+    <label style="margin-top:12px">Dán link video</label>
+    <div class="row">
+      <input type="text" id="manualLink" placeholder="https://www.instagram.com/reel/…" style="flex:1;min-width:200px" onkeydown="if(event.key==='Enter')pickByLink()">
+      <button class="btn small" id="linkBtn" onclick="pickByLink()">Dùng link này</button>
+    </div>
+    <p class="help">Trong app Instagram: mở video → bấm ⋯ hoặc nút chia sẻ → <b>Sao chép liên kết</b>.</p>
+    <p class="muted" style="margin-top:16px">Hoặc bấm chọn trong các video gần đây. Chọn "Tất cả video" nếu từ khoá dùng chung.</p>
     <div class="mgrid" id="mgrid"><p class="muted">Đang tải…</p></div>
-    <details>
-      <summary>Không thấy video? Dán ID thủ công</summary>
-      <div class="row" style="margin-top:10px">
-        <input type="text" id="manualId" placeholder="ID video" style="flex:1">
-        <button class="btn small" onclick="pickMedia(document.getElementById('manualId').value.trim())">Dùng ID này</button>
-      </div>
-    </details>
   </div>
 </div>
 
@@ -394,9 +393,9 @@ function thumbHtml(id) {
   const src = m && (m.thumbnail_url || (m.media_type === 'IMAGE' ? m.media_url : ''));
   return src ? `<div class="thumb"><img src="${esc(src)}" alt=""></div>` : '<div class="thumb">🎬</div>';
 }
-function shortCaption(id) {
+function shortCaption(id, saved) {
   const m = findMedia(id);
-  if (!m) return id ? 'Video ID ' + id : '';
+  if (!m) return saved || (id ? 'Video ID ' + id : '');
   return (m.caption || '').split('\n')[0].slice(0, 60) || 'Video ' + (m.timestamp || '').slice(0, 10);
 }
 
@@ -422,7 +421,7 @@ function renderVideos() {
         </div>
         <div class="chips">
           <span class="chip kw">${kw}</span>
-          <span class="chip">${r.mediaId ? '🎬 ' + esc(shortCaption(r.mediaId)) : '🌐 Tất cả video'}</span>
+          <span class="chip">${r.mediaId ? '🎬 ' + esc(shortCaption(r.mediaId, r.mediaCaption)) : '🌐 Tất cả video'}</span>
           ${r.requireFollow ? '<span class="chip">🔒 Cần follow</span>' : ''}
           ${r.useAi ? '<span class="chip">🤖 AI</span>' : ''}
         </div>
@@ -490,7 +489,7 @@ function gateChanged() {
 }
 function renderPicked() {
   $('edVideo').innerHTML = draftMediaId
-    ? `${thumbHtml(draftMediaId)}<div><b>${esc(shortCaption(draftMediaId))}</b><p class="muted">Bấm để đổi video</p></div>`
+    ? `${thumbHtml(draftMediaId)}<div><b>${esc(shortCaption(draftMediaId, editing >= 0 && rules.commentRules[editing].mediaId === draftMediaId ? rules.commentRules[editing].mediaCaption : ''))}</b><p class="muted">Bấm để đổi video</p></div>`
     : `<div class="thumb">🌐</div><div><b>Tất cả video</b><p class="muted">Bấm để chọn một video cụ thể</p></div>`;
 }
 
@@ -505,6 +504,7 @@ async function saveEditor() {
   const r = Object.assign({}, base, {
     name: $('edName').value.trim() || (keyword ? `Từ khoá ${keyword}` : 'Mọi comment'),
     keyword, matchType: any ? 'any' : 'contains', link, mediaId: draftMediaId,
+    mediaCaption: draftMediaId ? shortCaption(draftMediaId, base.mediaCaption) : '',
     requireFollow: gate, dmMessage: $('edDm').value, linkMessage: $('edLinkMsg').value,
     publicReply: $('edPublic').value,
     delayMin: parseInt($('edDelayMin').value) || 0, delayMax: parseInt($('edDelayMax').value) || 0,
@@ -542,6 +542,25 @@ function pickMedia(id) {
   draftMediaId = id;
   renderPicked();
   closePicker();
+}
+// Dán link reel/bài viết → server tìm đúng video đó (kể cả video cũ); dán số thì coi là ID.
+async function pickByLink() {
+  const val = $('manualLink').value.trim();
+  if (!val) return;
+  if (/^\d+$/.test(val)) { pickMedia(val); return; }
+  const btn = $('linkBtn');
+  btn.disabled = true; btn.textContent = 'Đang tìm…';
+  try {
+    const res = await fetch('/api/media/resolve?url=' + encodeURIComponent(val), { headers: headers() });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) { toast('❌ ' + (data.error || 'Không tìm được video'), true); return; }
+    if (!findMedia(data.id)) media.push(data);
+    $('manualLink').value = '';
+    pickMedia(data.id);
+    toast('✅ Đã chọn video');
+  } finally {
+    btn.disabled = false; btn.textContent = 'Dùng link này';
+  }
 }
 
 // ---------- trạng thái + nhật ký ----------
