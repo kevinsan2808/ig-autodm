@@ -297,8 +297,11 @@ async function refreshToken() {
 
 // ---------- keyword matching ----------
 
-function fillTemplate(text, username) {
-  return (text || '').replaceAll('{{username}}', username || 'there').replaceAll('{{me}}', selfUsername || 'me');
+function fillTemplate(text, username, rule) {
+  return (text || '')
+    .replaceAll('{{username}}', username || 'there')
+    .replaceAll('{{me}}', selfUsername || 'me')
+    .replaceAll('{{link}}', (rule && rule.link) || '');
 }
 
 // Pick one random variant so replies don't all look identical.
@@ -386,7 +389,7 @@ async function aiReply({ history, username, instruction }) {
 // and AI is configured; otherwise (or on any AI error) falls back to the template.
 // Pass `history` for multi-turn DMs; comments pass a single `incoming` message.
 async function resolveReply(rule, field, { incoming, username, history }) {
-  const template = fillTemplate(pickVariant(rule[field], DM_SEPARATOR), username);
+  const template = fillTemplate(pickVariant(rule[field], DM_SEPARATOR), username, rule);
   const useAi = rule.useAi && rules.ai && rules.ai.enabled && GEMINI_API_KEY;
   if (!useAi) return template;
   try {
@@ -488,7 +491,7 @@ async function handleComment(value) {
   const publicText = pickVariant(rule.publicReply, LINE_SEPARATOR);
   if (publicText) {
     try {
-      await sendPublicReply(commentId, fillTemplate(publicText, username));
+      await sendPublicReply(commentId, fillTemplate(publicText, username, rule));
       log('reply', `Public reply posted under ${who}'s comment`);
     } catch (e) {
       log('error', `Public reply failed: ${e.message}`);
@@ -506,7 +509,7 @@ async function handleGate(senderId, ruleId) {
   const who = `@${username || senderId}`;
   // If Instagram won't tell us, send the link anyway rather than leave them stuck.
   if (!check.ok || check.follows) {
-    const linkText = fillTemplate(pickVariant(rule.linkMessage, DM_SEPARATOR), username);
+    const linkText = fillTemplate(pickVariant(rule.linkMessage, DM_SEPARATOR), username, rule);
     if (linkText) await sendDM(senderId, linkText);
     bump(rule.id, 'linkSent');
     await touchContact(senderId, username, (c) => {
@@ -516,7 +519,7 @@ async function handleGate(senderId, ruleId) {
     });
     log('dm', `Link sent to ${who} (rule "${rule.name || rule.keyword}"${check.ok ? ', follows ✅' : ', follow status unknown'})`);
   } else {
-    const nudge = fillTemplate(pickVariant(rule.notFollowingMessage || DEFAULT_NOT_FOLLOWING, DM_SEPARATOR), username);
+    const nudge = fillTemplate(pickVariant(rule.notFollowingMessage || DEFAULT_NOT_FOLLOWING, DM_SEPARATOR), username, rule);
     await sendDM(senderId, nudge, { title: rule.gateButton || DEFAULT_GATE_BUTTON, payload: `GATE:${rule.id}` });
     bump(rule.id, 'notFollowing');
     await touchContact(senderId, username, (c) => {
@@ -667,6 +670,18 @@ app.get('/api/status', auth, async (req, res) => {
     stats,
     activity: activity.slice(0, 50),
   });
+});
+
+// Recent posts/reels so the dashboard can show a "pick a video" grid instead of raw IDs.
+app.get('/api/media', auth, async (req, res) => {
+  try {
+    const data = await igFetch(
+      `${GRAPH}/me/media?fields=id,caption,media_type,media_product_type,thumbnail_url,media_url,permalink,timestamp&limit=30`
+    );
+    res.json(data.data || []);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
 });
 
 app.get('/api/contacts', auth, async (req, res) => {
