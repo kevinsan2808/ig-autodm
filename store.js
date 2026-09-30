@@ -21,7 +21,8 @@ async function sb(pathAndQuery, { method = 'GET', body, prefer } = {}) {
     method,
     headers: {
       apikey: SB_KEY,
-      Authorization: `Bearer ${SB_KEY}`,
+      // Legacy keys are JWTs and also go in Authorization; new sb_secret_ keys only use apikey.
+      ...(SB_KEY.startsWith('eyJ') ? { Authorization: `Bearer ${SB_KEY}` } : {}),
       'Content-Type': 'application/json',
       ...(prefer ? { Prefer: prefer } : {}),
     },
