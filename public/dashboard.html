@@ -49,6 +49,13 @@
   .login { max-width: 360px; margin: 15vh auto; }
   .hidden { display: none; }
   .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .gate { border-left: 3px solid var(--accent); padding-left: 12px; margin-top: 6px; }
+  .stats { margin: 12px 0 0; color: var(--text); }
+  .table-wrap { overflow-x: auto; margin-top: 12px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { text-align: left; padding: 7px 8px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+  th { color: var(--muted); font-weight: 500; font-size: 12px; }
+  td a { color: var(--accent); text-decoration: none; }
   @media (max-width: 600px) { .grid2 { grid-template-columns: 1fr; } }
 </style>
 </head>
@@ -75,6 +82,18 @@
       </div>
     </div>
     <p class="hint">After first deploy: click <b>Activate webhooks</b> once so Instagram starts sending your comments &amp; DMs here.</p>
+    <p class="hint" id="dbStatus"></p>
+  </div>
+
+  <h2>⚙️ Settings</h2>
+  <div class="card">
+    <div class="grid2">
+      <div>
+        <label>🧊 Cooldown — don't DM the same person for the same rule again within (hours)</label>
+        <input type="text" id="cooldownHours" placeholder="24">
+      </div>
+    </div>
+    <p class="hint">Stops the bot from spamming someone who comments the keyword several times. 0 = no cooldown.</p>
   </div>
 
   <h2>🤖 AI replies</h2>
@@ -123,6 +142,17 @@
   <div id="dmRules"></div>
   <button class="small secondary" onclick="addRule('dm')">+ Add DM rule</button>
 
+  <h2>👥 Contacts</h2>
+  <div class="card">
+    <div class="row">
+      <input type="text" id="contactSearch" placeholder="Search username…" style="max-width:260px" onkeydown="if(event.key==='Enter')loadContacts()">
+      <button class="small secondary" onclick="loadContacts()">Search / refresh</button>
+      <button class="small secondary" onclick="exportCsv()">⬇️ Export CSV</button>
+      <span class="hint" id="contactCount" style="margin:0"></span>
+    </div>
+    <div id="contacts" class="table-wrap"></div>
+  </div>
+
   <h2>📜 Recent activity</h2>
   <div class="card log" id="activity">Loading…</div>
   <button class="small secondary" onclick="loadStatus()">Refresh activity</button>
@@ -144,6 +174,8 @@
 
 <script>
 let rules = { commentRules: [], dmRules: [] };
+let stats = {};
+let contacts = [];
 const pwKey = 'autodm_pw';
 
 function headers() {
@@ -166,6 +198,7 @@ async function tryLoad() {
     document.getElementById('toolbar').classList.remove('hidden');
     render();
     loadStatus();
+    loadContacts();
     return true;
   } catch { return false; }
 }
@@ -210,14 +243,44 @@ function render() {
         <input type="checkbox" style="width:auto" ${r.useAi?'checked':''}
           onchange="rules.commentRules[${i}].useAi=this.checked; render()"> 🤖 Use AI to write the DM
       </label>
-      <label>${r.useAi ? 'Instructions for the AI (what to tell them, link to include)' : 'DM to send them ({{username}} = their name)'}</label>
-      <textarea onchange="rules.commentRules[${i}].dmMessage=this.value">${esc(r.dmMessage)}</textarea>
-      <label>Public reply under their comment (optional — leave empty for none)</label>
-      <input type="text" value="${esc(r.publicReply)}" placeholder="e.g. Check your DMs! 📩"
-        onchange="rules.commentRules[${i}].publicReply=this.value">
+      <label>${r.useAi ? 'Instructions for the AI (what to tell them)' : 'DM to send them ({{username}} = their name). Several versions? Put a line with only --- between them, the bot picks one at random.'}${r.requireFollow ? ' — this first DM should ask them to tap the button below' : ''}</label>
+      <textarea onchange="rules.commentRules[${i}].dmMessage=this.value" placeholder="hey {{username}}! saw your comment 🙌 tap the button and I'll send it
+---
+yo {{username}}, got you — tap below 👇">${esc(r.dmMessage)}</textarea>
+      <label class="row" style="align-items:center;gap:8px;color:var(--text)">
+        <input type="checkbox" style="width:auto" ${r.requireFollow?'checked':''}
+          onchange="rules.commentRules[${i}].requireFollow=this.checked; render()"> 🔒 Only send the link to people who follow me
+      </label>
+      ${r.requireFollow ? `
+      <div class="gate">
+        <label>Button text (max 20 characters)</label>
+        <input type="text" maxlength="20" value="${esc(r.gateButton)}" placeholder="Send me the link 🔗"
+          onchange="rules.commentRules[${i}].gateButton=this.value">
+        <label>Link message — sent once they follow ({{username}} works, --- for versions)</label>
+        <textarea onchange="rules.commentRules[${i}].linkMessage=this.value" placeholder="here you go {{username}} 👉 https://...">${esc(r.linkMessage)}</textarea>
+        <label>If they don't follow yet</label>
+        <textarea onchange="rules.commentRules[${i}].notFollowingMessage=this.value" placeholder="Looks like you're not following me yet 👀 Follow @{{me}} then tap the button again!">${esc(r.notFollowingMessage)}</textarea>
+      </div>` : ''}
+      <label>Public replies under their comment — one per line, the bot picks one at random (optional)</label>
+      <textarea style="min-height:70px" onchange="rules.commentRules[${i}].publicReply=this.value" placeholder="Check your DMs! 📩
+sent 👀
+just DM'd you 🔥">${esc(r.publicReply)}</textarea>
+      <div class="grid2">
+        <div>
+          <label>⏱ Wait before sending — min seconds</label>
+          <input type="text" value="${r.delayMin ?? ''}" placeholder="0"
+            onchange="rules.commentRules[${i}].delayMin=parseInt(this.value)||0">
+        </div>
+        <div>
+          <label>⏱ max seconds (random time in between)</label>
+          <input type="text" value="${r.delayMax ?? ''}" placeholder="0"
+            onchange="rules.commentRules[${i}].delayMax=parseInt(this.value)||0">
+        </div>
+      </div>
       <label>Only for one specific post? (optional — paste the post's media ID, empty = all posts)</label>
       <input type="text" value="${esc(r.mediaId)}" placeholder="Leave empty for all posts"
         onchange="rules.commentRules[${i}].mediaId=this.value">
+      ${statsLine(r.id, true)}
     </div>`).join('');
 
   document.getElementById('dmRules').innerHTML = rules.dmRules.map((r, i) => `
@@ -248,8 +311,23 @@ function render() {
       </label>
       <label>${r.useAi ? 'Instructions for the AI (what to say, link to include)' : 'Auto-reply message ({{username}} = their name)'}</label>
       <textarea onchange="rules.dmRules[${i}].reply=this.value">${esc(r.reply)}</textarea>
+      ${statsLine(r.id, false)}
     </div>`).join('');
   renderAi();
+  const cd = document.getElementById('cooldownHours');
+  if (cd && document.activeElement !== cd) cd.value = rules.settings?.cooldownHours ?? 24;
+}
+
+function statsLine(id, isComment) {
+  const s = stats[id];
+  if (!s) return '<p class="hint stats">No activity yet</p>';
+  const parts = [`${s.triggered || 0} triggered`, `${s.dmSent || 0} DMs sent`];
+  if (isComment) {
+    if (s.linkSent) parts.push(`${s.linkSent} links unlocked`);
+    if (s.notFollowing) parts.push(`${s.notFollowing} asked to follow`);
+    if (s.cooldown) parts.push(`${s.cooldown} skipped (cooldown)`);
+  }
+  return `<p class="hint stats">📊 ${parts.join(' · ')}</p>`;
 }
 
 function renderAi() {
@@ -282,7 +360,7 @@ function toggleAi() {
 
 function addRule(kind) {
   if (kind === 'comment') {
-    rules.commentRules.push({ name: 'New rule', keyword: '', matchType: 'contains', dmMessage: '', publicReply: '', mediaId: '', useAi: false, enabled: true });
+    rules.commentRules.push({ name: 'New rule', keyword: '', matchType: 'contains', dmMessage: '', publicReply: '', mediaId: '', useAi: false, enabled: true, delayMin: 45, delayMax: 90, requireFollow: false });
   } else {
     rules.dmRules.push({ name: 'New rule', keyword: '', matchType: 'contains', reply: '', useAi: false, enabled: true });
   }
@@ -303,7 +381,11 @@ function toggle(kind, i) {
 async function save() {
   const msg = document.getElementById('saveMsg');
   msg.textContent = 'Saving…';
+  if (!rules.settings) rules.settings = {};
+  rules.settings.cooldownHours = parseFloat(document.getElementById('cooldownHours').value) || 0;
   const res = await fetch('/api/rules', { method: 'PUT', headers: headers(), body: JSON.stringify(rules) });
+  const data = await res.json().catch(() => ({}));
+  if (res.ok && data.rules) { rules = data.rules; render(); }
   msg.textContent = res.ok ? '✅ Saved! Rules are live.' : '❌ Save failed — check password.';
   setTimeout(() => msg.textContent = '', 4000);
 }
@@ -320,6 +402,11 @@ async function loadStatus() {
   } else {
     el.innerHTML = `<span class="status-dot" style="background:var(--red)"></span>Not connected — set IG_ACCESS_TOKEN (see setup guide)`;
   }
+  stats = s.stats || {};
+  render();
+  document.getElementById('dbStatus').innerHTML = s.database
+    ? '💾 Saved in your database — rules and contacts survive restarts.'
+    : '<span style="color:var(--yellow)">⚠️ No database yet — rules and contacts reset when the server redeploys. Add SUPABASE_URL and SUPABASE_KEY on Render.</span>';
   const aiHint = document.getElementById('aiKeyHint');
   if (aiHint) {
     aiHint.textContent = s.aiKeySet ? '' : '⚠️ No GEMINI_API_KEY set yet — add it in your Render environment variables, then AI replies will work.';
@@ -339,6 +426,35 @@ async function subscribe() {
   const data = await res.json().catch(() => ({}));
   alert(res.ok ? '✅ Webhooks activated! Instagram will now send comments & DMs to AutoDM.' : '❌ Failed: ' + (data.error || 'unknown error'));
   loadStatus();
+}
+
+async function loadContacts() {
+  const q = document.getElementById('contactSearch').value;
+  const res = await fetch('/api/contacts?q=' + encodeURIComponent(q), { headers: headers() });
+  const el = document.getElementById('contacts');
+  if (!res.ok) { el.innerHTML = '<p class="hint">Could not load contacts.</p>'; return; }
+  contacts = await res.json();
+  document.getElementById('contactCount').textContent = `${contacts.length} contact${contacts.length === 1 ? '' : 's'}`;
+  if (!contacts.length) { el.innerHTML = '<p class="hint">No contacts yet — they appear here when people comment or DM.</p>'; return; }
+  const day = (t) => (t || '').slice(0, 10);
+  const follow = (f) => f === true ? '✅' : f === false ? '❌' : '–';
+  el.innerHTML = `<table><thead><tr><th>Username</th><th>Keywords</th><th>Comments</th><th>DMs</th><th>Follows</th><th>First seen</th><th>Last seen</th></tr></thead><tbody>` +
+    contacts.map(c => `<tr>
+      <td>${c.username ? `<a href="https://instagram.com/${esc(c.username)}" target="_blank" rel="noopener">@${esc(c.username)}</a>` : esc(c.id)}</td>
+      <td>${esc((c.keywords || []).join(', '))}</td>
+      <td>${c.comments || 0}</td><td>${c.dms || 0}</td><td>${follow(c.follows)}</td>
+      <td>${day(c.first_seen)}</td><td>${day(c.last_seen)}</td></tr>`).join('') +
+    '</tbody></table>';
+}
+
+function exportCsv() {
+  const cols = ['username', 'id', 'keywords', 'comments', 'dms', 'follows', 'first_seen', 'last_seen', 'last_text'];
+  const cell = (v) => `"${String(Array.isArray(v) ? v.join(' | ') : v ?? '').replace(/"/g, '""')}"`;
+  const csv = [cols.join(','), ...contacts.map(c => cols.map(k => cell(c[k])).join(','))].join('\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
+  a.download = `autodm-contacts-${new Date().toISOString().slice(0, 10)}.csv`;
+  a.click();
 }
 
 function copyBackup() {
