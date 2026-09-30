@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="vi">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -115,42 +115,42 @@
 </head>
 <body>
 
-<!-- Đăng nhập -->
+<!-- Login -->
 <div id="login" class="login card">
   <h1>Auto<span>DM</span></h1>
-  <p class="muted" style="margin:6px 0 14px">Nhập mật khẩu dashboard</p>
-  <input type="password" id="pw" placeholder="Mật khẩu" onkeydown="if(event.key==='Enter')doLogin()">
-  <button class="btn" style="margin-top:12px;width:100%" onclick="doLogin()">Đăng nhập</button>
+  <p class="muted" style="margin:6px 0 14px">Enter your dashboard password</p>
+  <input type="password" id="pw" placeholder="Password" onkeydown="if(event.key==='Enter')doLogin()">
+  <button class="btn" style="margin-top:12px;width:100%" onclick="doLogin()">Log in</button>
   <p id="loginErr" class="muted" style="color:var(--red);margin-top:8px"></p>
 </div>
 
 <div id="app" class="wrap hidden">
   <div class="top">
     <h1>Auto<span>DM</span></h1>
-    <div class="pill" id="statusPill"><span class="dot"></span>Đang kiểm tra…</div>
+    <div class="pill" id="statusPill"><span class="dot"></span>Checking…</div>
   </div>
 
   <div class="tabs">
     <button data-tab="videos" class="active" onclick="showTab('videos')">📹 Video</button>
-    <button data-tab="contacts" onclick="showTab('contacts')">👥 Khách</button>
-    <button data-tab="log" onclick="showTab('log')">📜 Nhật ký</button>
-    <button data-tab="settings" onclick="showTab('settings')">⚙️ Cài đặt</button>
+    <button data-tab="contacts" onclick="showTab('contacts')">👥 Contacts</button>
+    <button data-tab="log" onclick="showTab('log')">📜 Activity</button>
+    <button data-tab="settings" onclick="showTab('settings')">⚙️ Settings</button>
   </div>
 
   <!-- TAB: VIDEO -->
   <section id="tab-videos">
-    <button class="btn big" onclick="openEditor(-1)">＋ Thêm video mới</button>
-    <p class="muted" style="margin:10px 2px 16px">Mỗi thẻ là một video: ai comment đúng từ khoá sẽ tự nhận tin nhắn (và link).</p>
+    <button class="btn big" onclick="openEditor(-1)">＋ Add new video</button>
+    <p class="muted" style="margin:10px 2px 16px">Each card is one video: anyone who comments the keyword automatically gets a DM (and your link).</p>
     <div id="videoList"></div>
   </section>
 
-  <!-- TAB: KHÁCH -->
+  <!-- TAB: CONTACTS -->
   <section id="tab-contacts" class="hidden">
     <div class="card">
       <div class="row">
-        <input type="text" id="contactSearch" placeholder="Tìm theo tên…" style="flex:1;min-width:160px" onkeydown="if(event.key==='Enter')loadContacts()">
-        <button class="btn ghost small" onclick="loadContacts()">Tìm</button>
-        <button class="btn ghost small" onclick="exportCsv()">⬇️ Tải file Excel (CSV)</button>
+        <input type="text" id="contactSearch" placeholder="Search by username…" style="flex:1;min-width:160px" onkeydown="if(event.key==='Enter')loadContacts()">
+        <button class="btn ghost small" onclick="loadContacts()">Search</button>
+        <button class="btn ghost small" onclick="exportCsv()">⬇️ Download CSV (Excel)</button>
       </div>
       <p class="muted" id="contactCount" style="margin-top:10px"></p>
       <div id="contacts" class="table-wrap"></div>
@@ -161,149 +161,149 @@
   <section id="tab-log" class="hidden">
     <div class="card">
       <div class="row" style="justify-content:space-between">
-        <b>Bot vừa làm gì</b>
+        <b>What the bot did recently</b>
         <div class="row">
-          <label class="row muted" style="margin:0;font-weight:400;gap:6px"><input type="checkbox" id="showRaw" onchange="renderLog()"> Hiện dữ liệu kỹ thuật</label>
-          <button class="btn ghost small" onclick="loadStatus()">↻ Làm mới</button>
+          <label class="row muted" style="margin:0;font-weight:400;gap:6px"><input type="checkbox" id="showRaw" onchange="renderLog()"> Show technical data</label>
+          <button class="btn ghost small" onclick="loadStatus()">↻ Refresh</button>
         </div>
       </div>
       <div class="log" id="log" style="margin-top:8px"></div>
     </div>
   </section>
 
-  <!-- TAB: CÀI ĐẶT -->
+  <!-- TAB: SETTINGS -->
   <section id="tab-settings" class="hidden">
     <div class="card">
-      <h2>🔌 Kết nối Instagram</h2>
+      <h2>🔌 Instagram connection</h2>
       <p class="muted" id="connText" style="margin:4px 0 12px"></p>
       <div class="row">
-        <button class="btn ghost small" onclick="reconnect()">Kết nối lại</button>
-        <button class="btn ghost small" onclick="subscribe()">Kích hoạt nhận comment &amp; tin nhắn</button>
+        <button class="btn ghost small" onclick="reconnect()">Reconnect</button>
+        <button class="btn ghost small" onclick="subscribe()">Activate comments &amp; DMs</button>
       </div>
-      <p class="muted" style="margin-top:10px">Chỉ cần bấm khi vừa đổi token hoặc bot không nhận comment nữa.</p>
+      <p class="muted" style="margin-top:10px">Only needed after changing the token, or if the bot stops receiving comments.</p>
       <p class="muted" id="dbText" style="margin-top:8px"></p>
     </div>
 
     <div class="card">
-      <h2>🧊 Chống spam</h2>
-      <label>Không nhắn lại cùng một người cho cùng một video trong (giờ)</label>
+      <h2>🧊 Anti-spam</h2>
+      <label>Don't DM the same person for the same video again within (hours)</label>
       <input type="text" id="cooldownHours" placeholder="24" style="max-width:140px">
-      <p class="help">Ai comment từ khoá nhiều lần cũng chỉ nhận 1 tin. 0 = tắt.</p>
+      <p class="help">Someone commenting the keyword several times still gets only one DM. 0 = off.</p>
     </div>
 
     <div class="card">
       <div class="row" style="justify-content:space-between">
-        <h2>🤖 AI trả lời tin nhắn</h2>
+        <h2>🤖 AI replies to DMs</h2>
         <label class="switch"><input type="checkbox" id="aiOn"><span class="slider"></span></label>
       </div>
       <p class="muted" id="aiKeyHint" style="margin-top:4px"></p>
       <div id="dmRules"></div>
-      <label>Bạn là ai, nói chuyện kiểu gì</label>
+      <label>Who you are and how you talk</label>
       <textarea id="aiPersona" style="min-height:110px"></textarea>
-      <label>Mục tiêu mỗi cuộc trò chuyện</label>
+      <label>Goal of each conversation</label>
       <textarea id="aiGoal" style="min-height:110px"></textarea>
       <div class="grid2">
-        <div><label>Chờ ít nhất (giây)</label><input type="text" id="aiDelayMin"></div>
-        <div><label>Chờ nhiều nhất (giây)</label><input type="text" id="aiDelayMax"></div>
+        <div><label>Wait at least (seconds)</label><input type="text" id="aiDelayMin"></div>
+        <div><label>Wait at most (seconds)</label><input type="text" id="aiDelayMax"></div>
       </div>
-      <p class="help">AI chờ ngẫu nhiên trong khoảng này rồi mới trả lời, cho giống người thật.</p>
+      <p class="help">The AI waits a random time in this range before replying, so it feels human.</p>
       <details>
-        <summary>Nâng cao</summary>
+        <summary>Advanced</summary>
         <label>Model AI</label>
         <input type="text" id="aiModel" placeholder="gemini-3.6-flash">
       </details>
     </div>
 
-    <button class="btn big" onclick="saveSettings()">💾 Lưu cài đặt</button>
+    <button class="btn big" onclick="saveSettings()">💾 Save settings</button>
   </section>
 </div>
 
-<!-- Sheet: sửa / thêm video -->
+<!-- Sheet: add / edit video -->
 <div id="editor" class="sheet-bg hidden" onclick="if(event.target===this)closeEditor()">
   <div class="sheet">
     <div class="sheet-head">
-      <h2 id="edTitle">Thêm video</h2>
+      <h2 id="edTitle">Add video</h2>
       <button class="x" onclick="closeEditor()">×</button>
     </div>
 
     <label>Video</label>
     <div class="picked" onclick="openPicker()" id="edVideo"></div>
 
-    <label>Tên (để bạn dễ nhớ)</label>
-    <input type="text" id="edName" placeholder="VD: Nước hoa Dior – 30/9">
+    <label>Name (just for you)</label>
+    <input type="text" id="edName" placeholder="e.g. Dior perfume – Sep 30">
 
-    <label>Từ khoá người xem sẽ comment</label>
+    <label>Keyword viewers will comment</label>
     <input type="text" id="edKeyword" placeholder="VD: SCENT">
-    <p class="help">Comment có chứa từ này (viết hoa hay thường đều được) là bot nhắn.</p>
+    <p class="help">Any comment containing this word (any capitalization) gets a DM.</p>
     <div class="toggle-row" style="margin-top:10px">
-      <div><b>Trả lời mọi comment</b><p class="muted">Không cần từ khoá</p></div>
+      <div><b>Reply to every comment</b><p class="muted">No keyword needed</p></div>
       <label class="switch"><input type="checkbox" id="edAny" onchange="syncEditor()"><span class="slider"></span></label>
     </div>
 
-    <label>Link muốn gửi</label>
+    <label>Link to send</label>
     <input type="text" id="edLink" placeholder="https://…">
 
     <div class="toggle-row">
-      <div><b>🔒 Phải follow mới nhận link</b><p class="muted">Tin đầu có nút bấm, bot kiểm tra follow rồi mới gửi link</p></div>
+      <div><b>🔒 Must follow to get the link</b><p class="muted">First DM has a button; the bot checks they follow you before sending the link</p></div>
       <label class="switch"><input type="checkbox" id="edGate" onchange="gateChanged()"><span class="slider"></span></label>
     </div>
 
-    <label id="edDmLabel">Tin nhắn đầu tiên</label>
+    <label id="edDmLabel">First message</label>
     <textarea id="edDm" style="min-height:110px"></textarea>
-    <p class="help">Viết nhiều phiên bản, cách nhau bằng một dòng chỉ có <b>---</b>, bot sẽ chọn ngẫu nhiên. <b>{{username}}</b> = tên người đó, <b>{{link}}</b> = link ở trên.</p>
+    <p class="help">Write several versions separated by a line with only <b>---</b>; the bot picks one at random. <b>{{username}}</b> = their name, <b>{{link}}</b> = the link above.</p>
 
     <div id="edGateBox" class="gate">
-      <label>Tin gửi kèm link (khi họ đã follow)</label>
+      <label>Message with the link (once they follow)</label>
       <textarea id="edLinkMsg"></textarea>
     </div>
 
-    <label>Trả lời công khai dưới comment</label>
-    <textarea id="edPublic" placeholder="Mỗi dòng một câu"></textarea>
-    <p class="help">Mỗi dòng một câu, bot chọn ngẫu nhiên. Để trống nếu không muốn trả lời công khai.</p>
+    <label>Public reply under their comment</label>
+    <textarea id="edPublic" placeholder="One reply per line"></textarea>
+    <p class="help">One reply per line; the bot picks one at random. Leave empty for no public reply.</p>
 
     <details>
-      <summary>Tuỳ chọn nâng cao</summary>
+      <summary>Advanced options</summary>
       <div class="grid2">
-        <div><label>Chờ ít nhất (giây)</label><input type="text" id="edDelayMin"></div>
-        <div><label>Chờ nhiều nhất (giây)</label><input type="text" id="edDelayMax"></div>
+        <div><label>Wait at least (seconds)</label><input type="text" id="edDelayMin"></div>
+        <div><label>Wait at most (seconds)</label><input type="text" id="edDelayMax"></div>
       </div>
-      <p class="help">Sau khi họ comment, bot chờ ngẫu nhiên trong khoảng này rồi mới nhắn.</p>
+      <p class="help">After they comment, the bot waits a random time in this range before sending.</p>
       <div id="edGateAdv">
-        <label>Chữ trên nút bấm (tối đa 20 ký tự)</label>
+        <label>Button text (max 20 characters)</label>
         <input type="text" id="edButton" maxlength="20" placeholder="Send me the link 🔗">
-        <label>Tin nhắc khi họ chưa follow</label>
+        <label>Message if they don't follow yet</label>
         <textarea id="edNudge" placeholder="Looks like you're not following me yet 👀 Follow @{{me}} then tap the button again!"></textarea>
       </div>
       <div class="toggle-row">
-        <div><b>🤖 Để AI tự viết tin đầu tiên</b><p class="muted">Khi bật, ô "Tin nhắn đầu tiên" là lời dặn cho AI</p></div>
+        <div><b>🤖 Let AI write the first message</b><p class="muted">When on, "First message" becomes instructions for the AI</p></div>
         <label class="switch"><input type="checkbox" id="edAi"><span class="slider"></span></label>
       </div>
     </details>
 
     <div class="sheet-foot">
-      <button class="btn danger small hidden" id="edDelete" onclick="deleteRule()">Xoá</button>
+      <button class="btn danger small hidden" id="edDelete" onclick="deleteRule()">Delete</button>
       <span style="flex:1"></span>
-      <button class="btn ghost" onclick="closeEditor()">Huỷ</button>
-      <button class="btn" onclick="saveEditor()">Lưu</button>
+      <button class="btn ghost" onclick="closeEditor()">Cancel</button>
+      <button class="btn" onclick="saveEditor()">Save</button>
     </div>
   </div>
 </div>
 
-<!-- Sheet: chọn video -->
+<!-- Sheet: pick video -->
 <div id="picker" class="sheet-bg hidden" style="z-index:30" onclick="if(event.target===this)closePicker()">
   <div class="sheet">
     <div class="sheet-head">
-      <h2>Chọn video</h2>
+      <h2>Choose video</h2>
       <button class="x" onclick="closePicker()">×</button>
     </div>
-    <label style="margin-top:12px">Dán link video</label>
+    <label style="margin-top:12px">Paste video link</label>
     <div class="row">
       <input type="text" id="manualLink" placeholder="https://www.instagram.com/reel/…" style="flex:1;min-width:200px" onkeydown="if(event.key==='Enter')pickByLink()">
-      <button class="btn small" id="linkBtn" onclick="pickByLink()">Dùng link này</button>
+      <button class="btn small" id="linkBtn" onclick="pickByLink()">Use this link</button>
     </div>
-    <p class="help">Trong app Instagram: mở video → bấm ⋯ hoặc nút chia sẻ → <b>Sao chép liên kết</b>.</p>
-    <p class="muted" style="margin-top:16px">Hoặc bấm chọn trong các video gần đây. Chọn "Tất cả video" nếu từ khoá dùng chung.</p>
-    <div class="mgrid" id="mgrid"><p class="muted">Đang tải…</p></div>
+    <p class="help">In the Instagram app: open the video → tap ⋯ or Share → <b>Copy link</b>.</p>
+    <p class="muted" style="margin-top:16px">Or tap one of your recent videos. Choose "All videos" to use the keyword everywhere.</p>
+    <div class="mgrid" id="mgrid"><p class="muted">Loading…</p></div>
   </div>
 </div>
 
@@ -340,10 +340,10 @@ function toast(msg, bad) {
   setTimeout(() => t.remove(), 2600);
 }
 
-// ---------- đăng nhập ----------
+// ---------- login ----------
 async function doLogin() {
   localStorage.setItem(pwKey, $('pw').value);
-  if (!(await tryLoad())) $('loginErr').textContent = 'Sai mật khẩu, thử lại nhé.';
+  if (!(await tryLoad())) $('loginErr').textContent = 'Wrong password, try again.';
 }
 async function tryLoad() {
   try {
@@ -367,12 +367,12 @@ function showTab(name) {
   if (name === 'log') loadStatus();
 }
 
-// ---------- lưu ----------
+// ---------- save ----------
 async function saveRules(okMsg) {
   const res = await fetch('/api/rules', { method: 'PUT', headers: headers(), body: JSON.stringify(rules) });
   const data = await res.json().catch(() => ({}));
   if (res.ok && data.rules) rules = data.rules;
-  toast(res.ok ? (okMsg || '✅ Đã lưu') : '❌ Lưu thất bại', !res.ok);
+  toast(res.ok ? (okMsg || '✅ Saved') : '❌ Save failed', !res.ok);
   renderVideos();
   return res.ok;
 }
@@ -402,32 +402,32 @@ function shortCaption(id, saved) {
 function renderVideos() {
   const list = rules.commentRules || [];
   if (!list.length) {
-    $('videoList').innerHTML = '<div class="card empty">Chưa có video nào.<br>Bấm <b>＋ Thêm video mới</b> để bắt đầu.</div>';
+    $('videoList').innerHTML = '<div class="card empty">No videos yet.<br>Tap <b>＋ Add new video</b> to start.</div>';
     return;
   }
   $('videoList').innerHTML = list.map((r, i) => {
     const on = r.enabled !== false;
     const s = stats[r.id] || {};
-    const kw = r.matchType === 'any' ? 'Mọi comment' : (r.keyword ? `Từ khoá: ${esc(r.keyword)}` : '⚠️ Chưa có từ khoá');
-    const statParts = [`<b>${s.triggered || 0}</b> comment`, `<b>${s.dmSent || 0}</b> tin đã gửi`];
-    if (r.requireFollow) statParts.push(`<b>${s.linkSent || 0}</b> link đã gửi`);
+    const kw = r.matchType === 'any' ? 'Every comment' : (r.keyword ? `Keyword: ${esc(r.keyword)}` : '⚠️ No keyword');
+    const statParts = [`<b>${s.triggered || 0}</b> comments`, `<b>${s.dmSent || 0}</b> DMs sent`];
+    if (r.requireFollow) statParts.push(`<b>${s.linkSent || 0}</b> links sent`);
     return `
     <div class="card vcard ${on ? '' : 'off'}">
       ${thumbHtml(r.mediaId)}
       <div class="vbody">
         <div class="vhead">
-          <div class="vname">${esc(r.name || 'Chưa đặt tên')}</div>
-          <label class="switch" title="${on ? 'Đang bật' : 'Đang tắt'}"><input type="checkbox" ${on ? 'checked' : ''} onchange="toggleRule(${i}, this.checked)"><span class="slider"></span></label>
+          <div class="vname">${esc(r.name || 'Untitled')}</div>
+          <label class="switch" title="${on ? 'On' : 'Off'}"><input type="checkbox" ${on ? 'checked' : ''} onchange="toggleRule(${i}, this.checked)"><span class="slider"></span></label>
         </div>
         <div class="chips">
           <span class="chip kw">${kw}</span>
-          <span class="chip">${r.mediaId ? '🎬 ' + esc(shortCaption(r.mediaId, r.mediaCaption)) : '🌐 Tất cả video'}</span>
-          ${r.requireFollow ? '<span class="chip">🔒 Cần follow</span>' : ''}
+          <span class="chip">${r.mediaId ? '🎬 ' + esc(shortCaption(r.mediaId, r.mediaCaption)) : '🌐 All videos'}</span>
+          ${r.requireFollow ? '<span class="chip">🔒 Follow required</span>' : ''}
           ${r.useAi ? '<span class="chip">🤖 AI</span>' : ''}
         </div>
         <div class="row" style="justify-content:space-between">
           <span class="stats">${statParts.join(' · ')}</span>
-          <button class="btn ghost small" onclick="openEditor(${i})">✏️ Sửa</button>
+          <button class="btn ghost small" onclick="openEditor(${i})">✏️ Edit</button>
         </div>
       </div>
     </div>`;
@@ -436,10 +436,10 @@ function renderVideos() {
 
 async function toggleRule(i, on) {
   rules.commentRules[i].enabled = on;
-  await saveRules(on ? '✅ Đã bật' : '⏸️ Đã tắt');
+  await saveRules(on ? '✅ Turned on' : '⏸️ Turned off');
 }
 
-// ---------- form sửa ----------
+// ---------- edit form ----------
 function openEditor(i) {
   editing = i;
   const r = i >= 0 ? rules.commentRules[i] : {
@@ -447,7 +447,7 @@ function openEditor(i) {
     dmMessage: DEF.dmGate, linkMessage: DEF.linkMsg, publicReply: DEF.publicReply,
     delayMin: 45, delayMax: 90, gateButton: '', notFollowingMessage: '', useAi: false, mediaId: '', enabled: true,
   };
-  $('edTitle').textContent = i >= 0 ? 'Sửa video' : 'Thêm video';
+  $('edTitle').textContent = i >= 0 ? 'Edit video' : 'Add video';
   $('edDelete').classList.toggle('hidden', i < 0);
   $('edName').value = r.name || '';
   $('edKeyword').value = r.keyword || '';
@@ -477,9 +477,9 @@ function syncEditor() {
   $('edGateBox').classList.toggle('hidden', !gate);
   $('edGateAdv').classList.toggle('hidden', !gate);
   $('edKeyword').disabled = $('edAny').checked;
-  $('edDmLabel').textContent = gate ? 'Tin nhắn đầu tiên (kèm nút "gửi link")' : 'Tin nhắn gửi cho họ';
+  $('edDmLabel').textContent = gate ? 'First message (with the "send link" button)' : 'Message to send them';
 }
-// Khi bật/tắt "phải follow", đổi tin mặc định cho khớp (nếu bạn chưa tự sửa).
+// When "must follow" is toggled, swap the default message to match (unless you edited it).
 function gateChanged() {
   const dm = $('edDm');
   if ($('edGate').checked && dm.value.trim() === DEF.dmDirect) dm.value = DEF.dmGate;
@@ -489,8 +489,8 @@ function gateChanged() {
 }
 function renderPicked() {
   $('edVideo').innerHTML = draftMediaId
-    ? `${thumbHtml(draftMediaId)}<div><b>${esc(shortCaption(draftMediaId, editing >= 0 && rules.commentRules[editing].mediaId === draftMediaId ? rules.commentRules[editing].mediaCaption : ''))}</b><p class="muted">Bấm để đổi video</p></div>`
-    : `<div class="thumb">🌐</div><div><b>Tất cả video</b><p class="muted">Bấm để chọn một video cụ thể</p></div>`;
+    ? `${thumbHtml(draftMediaId)}<div><b>${esc(shortCaption(draftMediaId, editing >= 0 && rules.commentRules[editing].mediaId === draftMediaId ? rules.commentRules[editing].mediaCaption : ''))}</b><p class="muted">Tap to change video</p></div>`
+    : `<div class="thumb">🌐</div><div><b>All videos</b><p class="muted">Tap to pick a specific video</p></div>`;
 }
 
 async function saveEditor() {
@@ -498,11 +498,11 @@ async function saveEditor() {
   const keyword = $('edKeyword').value.trim();
   const gate = $('edGate').checked;
   const link = $('edLink').value.trim();
-  if (!any && !keyword) { toast('Nhập từ khoá hoặc bật "Trả lời mọi comment"', true); return; }
-  if (gate && !link && !/https?:\/\//.test($('edLinkMsg').value)) { toast('Nhập link muốn gửi nhé', true); return; }
+  if (!any && !keyword) { toast('Enter a keyword or turn on "Reply to every comment"', true); return; }
+  if (gate && !link && !/https?:\/\//.test($('edLinkMsg').value)) { toast('Please enter the link to send', true); return; }
   const base = editing >= 0 ? rules.commentRules[editing] : { enabled: true };
   const r = Object.assign({}, base, {
-    name: $('edName').value.trim() || (keyword ? `Từ khoá ${keyword}` : 'Mọi comment'),
+    name: $('edName').value.trim() || (keyword ? `Keyword ${keyword}` : 'Every comment'),
     keyword, matchType: any ? 'any' : 'contains', link, mediaId: draftMediaId,
     mediaCaption: draftMediaId ? shortCaption(draftMediaId, base.mediaCaption) : '',
     requireFollow: gate, dmMessage: $('edDm').value, linkMessage: $('edLinkMsg').value,
@@ -511,15 +511,15 @@ async function saveEditor() {
     gateButton: $('edButton').value.trim(), notFollowingMessage: $('edNudge').value, useAi: $('edAi').checked,
   });
   if (editing >= 0) rules.commentRules[editing] = r; else rules.commentRules.push(r);
-  if (await saveRules(editing >= 0 ? '✅ Đã lưu thay đổi' : '✅ Đã thêm video')) closeEditor();
+  if (await saveRules(editing >= 0 ? '✅ Changes saved' : '✅ Video added')) closeEditor();
 }
 async function deleteRule() {
-  if (editing < 0 || !confirm('Xoá video này? Thống kê của nó cũng mất.')) return;
+  if (editing < 0 || !confirm('Delete this video? Its stats will be lost too.')) return;
   rules.commentRules.splice(editing, 1);
-  if (await saveRules('🗑️ Đã xoá')) closeEditor();
+  if (await saveRules('🗑️ Deleted')) closeEditor();
 }
 
-// ---------- chọn video ----------
+// ---------- pick video ----------
 function openPicker() {
   $('picker').classList.remove('hidden');
   renderPicker();
@@ -527,9 +527,9 @@ function openPicker() {
 }
 function closePicker() { $('picker').classList.add('hidden'); }
 function renderPicker() {
-  const all = `<div class="mitem all ${draftMediaId ? '' : 'sel'}" onclick="pickMedia('')"><div style="font-size:30px">🌐</div><p style="height:auto">Tất cả video</p></div>`;
-  if (!mediaLoaded) { $('mgrid').innerHTML = all + '<p class="muted">Đang tải video…</p>'; return; }
-  if (!media.length) { $('mgrid').innerHTML = all + '<p class="muted">Không tải được danh sách video. Dán ID thủ công ở dưới.</p>'; return; }
+  const all = `<div class="mitem all ${draftMediaId ? '' : 'sel'}" onclick="pickMedia('')"><div style="font-size:30px">🌐</div><p style="height:auto">All videos</p></div>`;
+  if (!mediaLoaded) { $('mgrid').innerHTML = all + '<p class="muted">Loading videos…</p>'; return; }
+  if (!media.length) { $('mgrid').innerHTML = all + '<p class="muted">Could not load your videos. Paste a video link above instead.</p>'; return; }
   $('mgrid').innerHTML = all + media.map(m => {
     const src = m.thumbnail_url || (m.media_type === 'IMAGE' ? m.media_url : '');
     const cap = (m.caption || '').split('\n')[0].slice(0, 50) || (m.timestamp || '').slice(0, 10);
@@ -543,48 +543,48 @@ function pickMedia(id) {
   renderPicked();
   closePicker();
 }
-// Dán link reel/bài viết → server tìm đúng video đó (kể cả video cũ); dán số thì coi là ID.
+// Paste a reel/post link → the server finds that exact video (even old ones); a plain number is treated as an ID.
 async function pickByLink() {
   const val = $('manualLink').value.trim();
   if (!val) return;
   if (/^\d+$/.test(val)) { pickMedia(val); return; }
   const btn = $('linkBtn');
-  btn.disabled = true; btn.textContent = 'Đang tìm…';
+  btn.disabled = true; btn.textContent = 'Searching…';
   try {
     const res = await fetch('/api/media/resolve?url=' + encodeURIComponent(val), { headers: headers() });
     const data = await res.json().catch(() => ({}));
-    if (!res.ok) { toast('❌ ' + (data.error || 'Không tìm được video'), true); return; }
+    if (!res.ok) { toast('❌ ' + (data.error || 'Could not find that video'), true); return; }
     if (!findMedia(data.id)) media.push(data);
     $('manualLink').value = '';
     pickMedia(data.id);
-    toast('✅ Đã chọn video');
+    toast('✅ Video selected');
   } finally {
-    btn.disabled = false; btn.textContent = 'Dùng link này';
+    btn.disabled = false; btn.textContent = 'Use this link';
   }
 }
 
-// ---------- trạng thái + nhật ký ----------
+// ---------- status + activity ----------
 async function loadStatus() {
   const res = await fetch('/api/status', { headers: headers() });
   if (!res.ok) return;
   status = await res.json();
   stats = status.stats || {};
   const pill = $('statusPill');
-  if (status.connected) pill.innerHTML = `<span class="dot" style="background:var(--green)"></span>Đang chạy · @${esc(status.username)}`;
-  else if (status.tokenSet) pill.innerHTML = `<span class="dot" style="background:var(--yellow)"></span>Token chưa xác nhận — vào Cài đặt`;
-  else pill.innerHTML = `<span class="dot" style="background:var(--red)"></span>Chưa kết nối Instagram`;
-  $('connText').textContent = status.connected ? `Đã kết nối với @${status.username}.` : 'Chưa kết nối được. Kiểm tra IG_ACCESS_TOKEN trên Render rồi bấm "Kết nối lại".';
-  $('dbText').innerHTML = status.database ? '💾 Dữ liệu lưu trong database, không bị mất khi server khởi động lại.' : '<span style="color:var(--yellow)">⚠️ Chưa có database — dữ liệu sẽ mất khi server deploy lại.</span>';
-  $('aiKeyHint').textContent = status.aiKeySet ? '' : '⚠️ Chưa có GEMINI_API_KEY trên Render nên AI chưa chạy được.';
+  if (status.connected) pill.innerHTML = `<span class="dot" style="background:var(--green)"></span>Running · @${esc(status.username)}`;
+  else if (status.tokenSet) pill.innerHTML = `<span class="dot" style="background:var(--yellow)"></span>Token not verified — open Settings`;
+  else pill.innerHTML = `<span class="dot" style="background:var(--red)"></span>Instagram not connected`;
+  $('connText').textContent = status.connected ? `Connected to @${status.username}.` : 'Not connected. Check IG_ACCESS_TOKEN on Render, then tap "Reconnect".';
+  $('dbText').innerHTML = status.database ? '💾 Data is stored in your database, so nothing is lost when the server restarts.' : '<span style="color:var(--yellow)">⚠️ No database yet — data resets when the server redeploys.</span>';
+  $('aiKeyHint').textContent = status.aiKeySet ? '' : '⚠️ No GEMINI_API_KEY on Render yet, so AI replies are off.';
   renderVideos();
   renderLog();
 }
 
 function describe(a) {
   const d = a.detail;
-  if (a.type === 'dm') return { cls: 'ok', text: '📩 ' + d.replace('DM sent to', 'Đã nhắn').replace('Auto-replied to DM from', 'AI đã trả lời').replace('Link sent to', 'Đã gửi link cho').replace("isn't following yet — asked them to follow first", 'chưa follow → đã nhắc follow') };
-  if (a.type === 'reply') return { cls: 'ok', text: '💬 ' + d.replace('Public reply posted under', 'Đã trả lời công khai dưới comment của').replace("'s comment", '') };
-  if (a.type === 'skip') return { cls: '', text: '⏭️ ' + d.replace('matched no rule', 'không khớp từ khoá nào').replace('Comment from', 'Comment của') };
+  if (a.type === 'dm') return { cls: 'ok', text: '📩 ' + d };
+  if (a.type === 'reply') return { cls: 'ok', text: '💬 ' + d };
+  if (a.type === 'skip') return { cls: '', text: '⏭️ ' + d };
   if (a.type === 'error') return { cls: 'err', text: '❌ ' + d };
   if (a.type === 'warn') return { cls: 'warn', text: '⚠️ ' + d };
   return { cls: '', text: 'ℹ️ ' + d };
@@ -593,35 +593,35 @@ function renderLog() {
   const raw = $('showRaw').checked;
   const rows = (status.activity || []).filter(a => raw || a.type !== 'webhook');
   $('log').innerHTML = rows.map(a => {
-    const t = new Date(a.time).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    const t = new Date(a.time).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
     if (a.type === 'webhook') return `<div><span class="t">${t}</span><span class="raw">${esc(a.detail)}</span></div>`;
     const d = describe(a);
     return `<div><span class="t">${t}</span><span class="${d.cls}">${esc(d.text)}</span></div>`;
-  }).join('') || '<p class="muted" style="padding:16px 0">Chưa có hoạt động. Thử comment từ khoá vào một video nhé!</p>';
+  }).join('') || '<p class="muted" style="padding:16px 0">No activity yet. Try commenting a keyword on one of your videos!</p>';
 }
 
 async function reconnect() {
   await fetch('/api/reconnect', { method: 'POST', headers: headers() });
   await loadStatus();
-  toast(status.connected ? '✅ Đã kết nối' : '❌ Chưa kết nối được', !status.connected);
+  toast(status.connected ? '✅ Connected' : '❌ Not connected', !status.connected);
 }
 async function subscribe() {
   const res = await fetch('/api/subscribe', { method: 'POST', headers: headers() });
   const data = await res.json().catch(() => ({}));
-  toast(res.ok ? '✅ Đã kích hoạt' : '❌ ' + (data.error || 'Lỗi'), !res.ok);
+  toast(res.ok ? '✅ Activated' : '❌ ' + (data.error || 'Error'), !res.ok);
   loadStatus();
 }
 
-// ---------- khách ----------
+// ---------- contacts ----------
 async function loadContacts() {
   const res = await fetch('/api/contacts?q=' + encodeURIComponent($('contactSearch').value), { headers: headers() });
-  if (!res.ok) { $('contacts').innerHTML = '<p class="muted">Không tải được danh sách.</p>'; return; }
+  if (!res.ok) { $('contacts').innerHTML = '<p class="muted">Could not load contacts.</p>'; return; }
   contacts = await res.json();
-  $('contactCount').textContent = `${contacts.length} người`;
-  if (!contacts.length) { $('contacts').innerHTML = '<p class="muted" style="padding:10px 0">Chưa có ai. Người comment hoặc nhắn tin sẽ hiện ở đây.</p>'; return; }
-  const day = (t) => t ? new Date(t).toLocaleDateString('vi-VN') : '';
+  $('contactCount').textContent = `${contacts.length} contact${contacts.length === 1 ? '' : 's'}`;
+  if (!contacts.length) { $('contacts').innerHTML = '<p class="muted" style="padding:10px 0">No one yet. People who comment or DM you will show up here.</p>'; return; }
+  const day = (t) => t ? new Date(t).toLocaleDateString('en-US') : '';
   const follow = (f) => f === true ? '✅' : f === false ? '❌' : '–';
-  $('contacts').innerHTML = `<table><thead><tr><th>Tên</th><th>Từ khoá</th><th>Comment</th><th>Tin nhắn</th><th>Follow</th><th>Lần đầu</th><th>Gần nhất</th></tr></thead><tbody>` +
+  $('contacts').innerHTML = `<table><thead><tr><th>Username</th><th>Keywords</th><th>Comments</th><th>DMs</th><th>Follows</th><th>First seen</th><th>Last seen</th></tr></thead><tbody>` +
     contacts.map(c => `<tr>
       <td>${c.username ? `<a href="https://instagram.com/${esc(c.username)}" target="_blank" rel="noopener">@${esc(c.username)}</a>` : esc(c.id)}</td>
       <td>${esc((c.keywords || []).join(', '))}</td><td>${c.comments || 0}</td><td>${c.dms || 0}</td>
@@ -633,11 +633,11 @@ function exportCsv() {
   const csv = [cols.join(','), ...contacts.map(c => cols.map(k => cell(c[k])).join(','))].join('\n');
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob(['﻿' + csv], { type: 'text/csv' }));
-  a.download = `autodm-khach-${new Date().toISOString().slice(0, 10)}.csv`;
+  a.download = `autodm-contacts-${new Date().toISOString().slice(0, 10)}.csv`;
   a.click();
 }
 
-// ---------- cài đặt ----------
+// ---------- settings ----------
 function renderSettings() {
   const ai = rules.ai || {};
   const d = ai.humanDelay || {};
@@ -648,10 +648,10 @@ function renderSettings() {
   $('aiDelayMin').value = d.minSec ?? 40;
   $('aiDelayMax').value = d.maxSec ?? 180;
   $('cooldownHours').value = rules.settings?.cooldownHours ?? 24;
-  // Tin nhắn trực tiếp: hiện công tắc cho từng rule DM (thường chỉ có 1 rule "AI trả lời mọi tin").
+  // Direct messages: a switch for each DM rule (usually just the one "AI answers every DM" rule).
   $('dmRules').innerHTML = (rules.dmRules || []).map((r, i) => `
     <div class="toggle-row">
-      <div><b>${esc(r.name || 'Trả lời tin nhắn')}</b><p class="muted">${r.matchType === 'any' ? 'Khi ai đó tự nhắn tin cho bạn' : 'Tin nhắn có chữ: ' + esc(r.keyword)}${r.useAi ? ' · AI viết' : ''}</p></div>
+      <div><b>${esc(r.name || 'Reply to DMs')}</b><p class="muted">${r.matchType === 'any' ? 'When someone messages you directly' : 'Messages containing: ' + esc(r.keyword)}${r.useAi ? ' · written by AI' : ''}</p></div>
       <label class="switch"><input type="checkbox" ${r.enabled !== false ? 'checked' : ''} onchange="rules.dmRules[${i}].enabled=this.checked"><span class="slider"></span></label>
     </div>`).join('');
 }
@@ -664,7 +664,7 @@ async function saveSettings() {
     humanDelay: { enabled: true, minSec: parseInt($('aiDelayMin').value) || 0, maxSec: parseInt($('aiDelayMax').value) || 0 },
   });
   rules.settings = Object.assign({}, rules.settings, { cooldownHours: parseFloat($('cooldownHours').value) || 0 });
-  await saveRules('✅ Đã lưu cài đặt');
+  await saveRules('✅ Settings saved');
   renderSettings();
 }
 
