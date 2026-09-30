@@ -7,7 +7,8 @@ const fs = require('fs');
 const path = require('path');
 
 const SB_URL = (process.env.SUPABASE_URL || '').replace(/\/+$/, '');
-const SB_KEY = process.env.SUPABASE_KEY || '';
+// Strip stray spaces/line breaks that sneak in when the key is pasted.
+const SB_KEY = (process.env.SUPABASE_KEY || '').replace(/\s+/g, '');
 const useSupabase = !!(SB_URL && SB_KEY);
 
 const DATA_DIR = path.join(__dirname, 'data');
@@ -17,17 +18,23 @@ const CONTACTS_FILE = path.join(DATA_DIR, 'contacts.json');
 // ---------- Supabase REST helper ----------
 
 async function sb(pathAndQuery, { method = 'GET', body, prefer } = {}) {
-  const res = await fetch(`${SB_URL}/rest/v1/${pathAndQuery}`, {
-    method,
-    headers: {
-      apikey: SB_KEY,
-      // Legacy keys are JWTs and also go in Authorization; new sb_secret_ keys only use apikey.
-      ...(SB_KEY.startsWith('eyJ') ? { Authorization: `Bearer ${SB_KEY}` } : {}),
-      'Content-Type': 'application/json',
-      ...(prefer ? { Prefer: prefer } : {}),
-    },
-    body: body === undefined ? undefined : JSON.stringify(body),
-  });
+  let res;
+  try {
+    res = await fetch(`${SB_URL}/rest/v1/${pathAndQuery}`, {
+      method,
+      headers: {
+        apikey: SB_KEY,
+        // Legacy keys are JWTs and also go in Authorization; new sb_secret_ keys only use apikey.
+        ...(SB_KEY.startsWith('eyJ') ? { Authorization: `Bearer ${SB_KEY}` } : {}),
+        'Content-Type': 'application/json',
+        ...(prefer ? { Prefer: prefer } : {}),
+      },
+      body: body === undefined ? undefined : JSON.stringify(body),
+    });
+  } catch (e) {
+    // Never let the key end up in logs via an error message.
+    throw new Error(`Supabase request failed: ${e.message.split(SB_KEY).join('[key]')}`.replace(/sb_secret_\S+/g, '[key]'));
+  }
   const text = await res.text();
   if (!res.ok) throw new Error(`Supabase ${res.status}: ${text.slice(0, 200)}`);
   return text ? JSON.parse(text) : null;
