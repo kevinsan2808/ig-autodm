@@ -1,466 +1,652 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="vi">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AutoDM — Instagram Automation</title>
+<title>AutoDM</title>
 <style>
   :root {
-    --bg: #0f1117; --card: #181b24; --border: #2a2f3d;
-    --text: #e8eaf0; --muted: #8b91a3; --accent: #e1306c;
+    --bg: #0f1117; --card: #181b24; --card2: #1f2330; --border: #2a2f3d;
+    --text: #e8eaf0; --muted: #8b91a3; --accent: #e1306c; --accent2: #ff5c93;
     --green: #34c77b; --red: #ff5c5c; --yellow: #f2b134;
   }
   * { box-sizing: border-box; }
-  body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); }
-  .wrap { max-width: 860px; margin: 0 auto; padding: 24px 16px 80px; }
-  h1 { font-size: 22px; margin: 0 0 4px; }
+  body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); font-size: 15px; }
+  .wrap { max-width: 820px; margin: 0 auto; padding: 20px 16px 60px; }
+  .hidden { display: none !important; }
+  h1 { font-size: 22px; margin: 0; }
   h1 span { color: var(--accent); }
-  .sub { color: var(--muted); font-size: 13px; margin-bottom: 24px; }
-  h2 { font-size: 15px; margin: 28px 0 10px; }
-  .card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 16px; margin-bottom: 12px; }
-  label { display: block; font-size: 12px; color: var(--muted); margin: 10px 0 4px; }
+  h2 { font-size: 17px; margin: 0 0 4px; }
+  p { margin: 0; }
+  .muted { color: var(--muted); font-size: 13px; }
+  a { color: var(--accent2); }
+
+  /* header */
+  .top { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+  .pill { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; padding: 6px 12px; border-radius: 20px; background: var(--card); border: 1px solid var(--border); }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
+
+  /* tabs */
+  .tabs { display: flex; gap: 4px; background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 4px; margin-bottom: 20px; }
+  .tabs button { flex: 1; background: transparent; color: var(--muted); border: 0; border-radius: 9px; padding: 10px 4px; font-size: 14px; font-weight: 600; cursor: pointer; }
+  .tabs button.active { background: var(--accent); color: #fff; }
+
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 16px; margin-bottom: 12px; }
+  label { display: block; font-size: 13px; font-weight: 600; margin: 16px 0 6px; }
+  .help { font-weight: 400; color: var(--muted); font-size: 12px; margin-top: 4px; }
   input[type=text], input[type=password], textarea, select {
-    width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
-    color: var(--text); padding: 9px 10px; font-size: 14px; font-family: inherit;
+    width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 10px;
+    color: var(--text); padding: 11px 12px; font-size: 15px; font-family: inherit;
   }
-  textarea { min-height: 60px; resize: vertical; }
-  button {
-    background: var(--accent); color: #fff; border: 0; border-radius: 8px;
-    padding: 10px 18px; font-size: 14px; font-weight: 600; cursor: pointer;
-  }
-  button.secondary { background: transparent; border: 1px solid var(--border); color: var(--text); }
-  button.small { padding: 6px 12px; font-size: 12px; }
-  button.danger { background: transparent; border: 1px solid var(--red); color: var(--red); }
+  input:focus, textarea:focus { outline: 2px solid var(--accent); border-color: transparent; }
+  textarea { min-height: 80px; resize: vertical; line-height: 1.45; }
+  button { font-family: inherit; }
+  .btn { background: var(--accent); color: #fff; border: 0; border-radius: 10px; padding: 11px 18px; font-size: 15px; font-weight: 600; cursor: pointer; }
+  .btn:hover { background: var(--accent2); }
+  .btn.ghost { background: transparent; border: 1px solid var(--border); color: var(--text); }
+  .btn.ghost:hover { background: var(--card2); }
+  .btn.danger { background: transparent; border: 1px solid var(--red); color: var(--red); }
+  .btn.small { padding: 7px 12px; font-size: 13px; }
+  .btn.big { width: 100%; padding: 16px; font-size: 16px; border-radius: 14px; }
   .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
-  .rule-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
-  .badge { font-size: 11px; padding: 3px 9px; border-radius: 20px; border: 1px solid var(--border); color: var(--muted); }
-  .badge.on { color: var(--green); border-color: var(--green); }
-  .status-dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 6px; }
-  .toolbar { position: fixed; bottom: 0; left: 0; right: 0; background: var(--card); border-top: 1px solid var(--border); padding: 12px 16px; }
-  .toolbar-inner { max-width: 860px; margin: 0 auto; display: flex; gap: 10px; align-items: center; }
-  .toolbar .msg { color: var(--muted); font-size: 13px; }
-  .log { font-size: 12px; font-family: ui-monospace, Menlo, monospace; max-height: 260px; overflow-y: auto; }
-  .log div { padding: 3px 0; border-bottom: 1px solid var(--border); color: var(--muted); }
-  .log .t-dm { color: var(--green); }
-  .log .t-reply { color: var(--green); }
-  .log .t-error { color: var(--red); }
-  .log .t-warn { color: var(--yellow); }
-  .hint { font-size: 12px; color: var(--muted); margin-top: 6px; }
-  .login { max-width: 360px; margin: 15vh auto; }
-  .hidden { display: none; }
-  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-  .gate { border-left: 3px solid var(--accent); padding-left: 12px; margin-top: 6px; }
-  .stats { margin: 12px 0 0; color: var(--text); }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  @media (max-width: 560px) { .grid2 { grid-template-columns: 1fr; } }
+
+  /* switch */
+  .switch { position: relative; width: 46px; height: 26px; flex: none; cursor: pointer; }
+  .switch input { opacity: 0; width: 0; height: 0; }
+  .slider { position: absolute; inset: 0; background: var(--border); border-radius: 26px; transition: .2s; }
+  .slider:before { content: ''; position: absolute; width: 20px; height: 20px; left: 3px; top: 3px; background: #fff; border-radius: 50%; transition: .2s; }
+  .switch input:checked + .slider { background: var(--green); }
+  .switch input:checked + .slider:before { transform: translateX(20px); }
+  .toggle-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 12px 14px; background: var(--card2); border-radius: 10px; margin-top: 16px; }
+  .toggle-row b { font-size: 14px; }
+
+  /* video cards */
+  .vcard { display: flex; gap: 14px; align-items: flex-start; }
+  .thumb { width: 64px; height: 86px; border-radius: 10px; background: var(--card2); object-fit: cover; flex: none; display: flex; align-items: center; justify-content: center; font-size: 26px; overflow: hidden; }
+  .thumb img { width: 100%; height: 100%; object-fit: cover; }
+  .vbody { flex: 1; min-width: 0; }
+  .vhead { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+  .vname { font-weight: 700; font-size: 15px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .chips { display: flex; gap: 6px; flex-wrap: wrap; margin: 8px 0; }
+  .chip { font-size: 12px; padding: 3px 9px; border-radius: 20px; background: var(--card2); border: 1px solid var(--border); }
+  .chip.kw { color: var(--accent2); border-color: var(--accent); font-weight: 600; }
+  .stats { font-size: 13px; color: var(--muted); }
+  .stats b { color: var(--text); }
+  .vcard.off { opacity: .55; }
+  .empty { text-align: center; padding: 32px 16px; color: var(--muted); }
+
+  /* sheets (editor + picker) */
+  .sheet-bg { position: fixed; inset: 0; background: rgba(0,0,0,.6); z-index: 20; display: flex; justify-content: center; align-items: flex-start; overflow-y: auto; padding: 24px 12px; }
+  .sheet { background: var(--card); border: 1px solid var(--border); border-radius: 16px; width: 100%; max-width: 620px; padding: 20px; }
+  .sheet-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+  .x { background: transparent; border: 0; color: var(--muted); font-size: 24px; cursor: pointer; line-height: 1; }
+  .sheet-foot { display: flex; gap: 10px; justify-content: flex-end; margin-top: 22px; position: sticky; bottom: 0; background: var(--card); padding-top: 12px; }
+  .picked { display: flex; gap: 12px; align-items: center; padding: 10px; background: var(--card2); border-radius: 10px; cursor: pointer; border: 1px dashed var(--border); }
+  .picked .thumb { width: 44px; height: 58px; font-size: 20px; }
+  details { margin-top: 18px; background: var(--card2); border-radius: 10px; padding: 4px 14px 14px; }
+  summary { cursor: pointer; font-weight: 600; font-size: 14px; padding: 10px 0 0; }
+  .gate { border-left: 3px solid var(--accent); padding-left: 12px; }
+  .mgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 10px; margin-top: 14px; }
+  .mitem { cursor: pointer; border-radius: 10px; overflow: hidden; background: var(--card2); border: 2px solid transparent; }
+  .mitem:hover, .mitem.sel { border-color: var(--accent); }
+  .mitem img, .mitem .noimg { width: 100%; aspect-ratio: 9/14; object-fit: cover; display: flex; align-items: center; justify-content: center; font-size: 28px; }
+  .mitem p { font-size: 11px; color: var(--muted); padding: 6px; height: 34px; overflow: hidden; }
+  .mitem.all { display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; min-height: 170px; }
+
+  /* contacts + log */
   .table-wrap { overflow-x: auto; margin-top: 12px; }
   table { width: 100%; border-collapse: collapse; font-size: 13px; }
-  th, td { text-align: left; padding: 7px 8px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+  th, td { text-align: left; padding: 9px 8px; border-bottom: 1px solid var(--border); white-space: nowrap; }
   th { color: var(--muted); font-weight: 500; font-size: 12px; }
-  td a { color: var(--accent); text-decoration: none; }
-  @media (max-width: 600px) { .grid2 { grid-template-columns: 1fr; } }
+  td a { text-decoration: none; }
+  .log div { font-size: 13px; padding: 8px 0; border-bottom: 1px solid var(--border); display: flex; gap: 10px; }
+  .log .t { color: var(--muted); font-family: ui-monospace, Menlo, monospace; font-size: 12px; flex: none; }
+  .log .ok { color: var(--green); }
+  .log .err { color: var(--red); }
+  .log .warn { color: var(--yellow); }
+  .log .raw { color: var(--muted); font-family: ui-monospace, Menlo, monospace; font-size: 11px; word-break: break-all; }
+
+  .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: var(--green); color: #0b1a12; font-weight: 700; padding: 11px 20px; border-radius: 12px; z-index: 50; font-size: 14px; }
+  .toast.bad { background: var(--red); color: #fff; }
+  .login { max-width: 360px; margin: 16vh auto; }
 </style>
 </head>
 <body>
 
+<!-- Đăng nhập -->
 <div id="login" class="login card">
   <h1>Auto<span>DM</span></h1>
-  <p class="sub">Enter your dashboard password</p>
-  <input type="password" id="pw" placeholder="Password" onkeydown="if(event.key==='Enter')doLogin()">
-  <div style="margin-top:12px"><button onclick="doLogin()">Log in</button></div>
-  <p id="loginErr" class="hint" style="color:var(--red)"></p>
+  <p class="muted" style="margin:6px 0 14px">Nhập mật khẩu dashboard</p>
+  <input type="password" id="pw" placeholder="Mật khẩu" onkeydown="if(event.key==='Enter')doLogin()">
+  <button class="btn" style="margin-top:12px;width:100%" onclick="doLogin()">Đăng nhập</button>
+  <p id="loginErr" class="muted" style="color:var(--red);margin-top:8px"></p>
 </div>
 
 <div id="app" class="wrap hidden">
-  <h1>Auto<span>DM</span></h1>
-  <p class="sub">Your self-hosted Instagram comment-to-DM automation</p>
+  <div class="top">
+    <h1>Auto<span>DM</span></h1>
+    <div class="pill" id="statusPill"><span class="dot"></span>Đang kiểm tra…</div>
+  </div>
 
-  <div class="card">
-    <div class="row" style="justify-content:space-between">
-      <div id="connStatus"><span class="status-dot" style="background:var(--muted)"></span>Checking connection…</div>
+  <div class="tabs">
+    <button data-tab="videos" class="active" onclick="showTab('videos')">📹 Video</button>
+    <button data-tab="contacts" onclick="showTab('contacts')">👥 Khách</button>
+    <button data-tab="log" onclick="showTab('log')">📜 Nhật ký</button>
+    <button data-tab="settings" onclick="showTab('settings')">⚙️ Cài đặt</button>
+  </div>
+
+  <!-- TAB: VIDEO -->
+  <section id="tab-videos">
+    <button class="btn big" onclick="openEditor(-1)">＋ Thêm video mới</button>
+    <p class="muted" style="margin:10px 2px 16px">Mỗi thẻ là một video: ai comment đúng từ khoá sẽ tự nhận tin nhắn (và link).</p>
+    <div id="videoList"></div>
+  </section>
+
+  <!-- TAB: KHÁCH -->
+  <section id="tab-contacts" class="hidden">
+    <div class="card">
       <div class="row">
-        <button class="small secondary" onclick="reconnect()">Reconnect</button>
-        <button class="small secondary" onclick="subscribe()">Activate webhooks</button>
+        <input type="text" id="contactSearch" placeholder="Tìm theo tên…" style="flex:1;min-width:160px" onkeydown="if(event.key==='Enter')loadContacts()">
+        <button class="btn ghost small" onclick="loadContacts()">Tìm</button>
+        <button class="btn ghost small" onclick="exportCsv()">⬇️ Tải file Excel (CSV)</button>
       </div>
+      <p class="muted" id="contactCount" style="margin-top:10px"></p>
+      <div id="contacts" class="table-wrap"></div>
     </div>
-    <p class="hint">After first deploy: click <b>Activate webhooks</b> once so Instagram starts sending your comments &amp; DMs here.</p>
-    <p class="hint" id="dbStatus"></p>
-  </div>
+  </section>
 
-  <h2>⚙️ Settings</h2>
-  <div class="card">
-    <div class="grid2">
-      <div>
-        <label>🧊 Cooldown — don't DM the same person for the same rule again within (hours)</label>
-        <input type="text" id="cooldownHours" placeholder="24">
+  <!-- TAB: NHẬT KÝ -->
+  <section id="tab-log" class="hidden">
+    <div class="card">
+      <div class="row" style="justify-content:space-between">
+        <b>Bot vừa làm gì</b>
+        <div class="row">
+          <label class="row muted" style="margin:0;font-weight:400;gap:6px"><input type="checkbox" id="showRaw" onchange="renderLog()"> Hiện dữ liệu kỹ thuật</label>
+          <button class="btn ghost small" onclick="loadStatus()">↻ Làm mới</button>
+        </div>
       </div>
+      <div class="log" id="log" style="margin-top:8px"></div>
     </div>
-    <p class="hint">Stops the bot from spamming someone who comments the keyword several times. 0 = no cooldown.</p>
-  </div>
+  </section>
 
-  <h2>🤖 AI replies</h2>
-  <div class="card" id="aiCard">
-    <div class="rule-head">
-      <div>
-        <b>Smart replies with Gemini</b>
-        <p class="hint" style="margin:4px 0 0">When a rule has <b>Use AI</b> ticked, the bot writes a natural reply instead of sending the fixed text. It answers in the person's own language.</p>
-      </div>
+  <!-- TAB: CÀI ĐẶT -->
+  <section id="tab-settings" class="hidden">
+    <div class="card">
+      <h2>🔌 Kết nối Instagram</h2>
+      <p class="muted" id="connText" style="margin:4px 0 12px"></p>
       <div class="row">
-        <span class="badge" id="aiBadge">OFF</span>
-        <button class="small secondary" id="aiToggleBtn" onclick="toggleAi()">Turn on</button>
+        <button class="btn ghost small" onclick="reconnect()">Kết nối lại</button>
+        <button class="btn ghost small" onclick="subscribe()">Kích hoạt nhận comment &amp; tin nhắn</button>
       </div>
+      <p class="muted" style="margin-top:10px">Chỉ cần bấm khi vừa đổi token hoặc bot không nhận comment nữa.</p>
+      <p class="muted" id="dbText" style="margin-top:8px"></p>
     </div>
-    <p class="hint" id="aiKeyHint" style="color:var(--yellow)"></p>
-    <div class="grid2">
-      <div>
-        <label>Model</label>
-        <input type="text" id="aiModel" placeholder="gemini-3.6-flash" onchange="rules.ai.model=this.value">
+
+    <div class="card">
+      <h2>🧊 Chống spam</h2>
+      <label>Không nhắn lại cùng một người cho cùng một video trong (giờ)</label>
+      <input type="text" id="cooldownHours" placeholder="24" style="max-width:140px">
+      <p class="help">Ai comment từ khoá nhiều lần cũng chỉ nhận 1 tin. 0 = tắt.</p>
+    </div>
+
+    <div class="card">
+      <div class="row" style="justify-content:space-between">
+        <h2>🤖 AI trả lời tin nhắn</h2>
+        <label class="switch"><input type="checkbox" id="aiOn"><span class="slider"></span></label>
       </div>
-    </div>
-    <label>Persona — how you sound (tone, style, who you are)</label>
-    <textarea id="aiPersona" style="min-height:80px" onchange="rules.ai.persona=this.value"></textarea>
-    <label>🎯 Goal — what each conversation should achieve, step by step</label>
-    <textarea id="aiGoal" style="min-height:110px" placeholder="e.g. Help them first → get to know them → casually mention what I do → invite them to follow & repost. One step at a time, never hard-sell." onchange="rules.ai.goal=this.value"></textarea>
-    <label class="row" style="align-items:center;gap:8px;color:var(--text)">
-      <input type="checkbox" id="aiDelayOn" style="width:auto" onchange="rules.ai.humanDelay.enabled=this.checked"> ⏳ Reply like a human (wait a bit before answering, so it doesn't feel like a bot)
-    </label>
-    <div class="grid2">
-      <div>
-        <label>Min wait (seconds)</label>
-        <input type="text" id="aiDelayMin" placeholder="40" onchange="rules.ai.humanDelay.minSec=parseInt(this.value)||0">
+      <p class="muted" id="aiKeyHint" style="margin-top:4px"></p>
+      <div id="dmRules"></div>
+      <label>Bạn là ai, nói chuyện kiểu gì</label>
+      <textarea id="aiPersona" style="min-height:110px"></textarea>
+      <label>Mục tiêu mỗi cuộc trò chuyện</label>
+      <textarea id="aiGoal" style="min-height:110px"></textarea>
+      <div class="grid2">
+        <div><label>Chờ ít nhất (giây)</label><input type="text" id="aiDelayMin"></div>
+        <div><label>Chờ nhiều nhất (giây)</label><input type="text" id="aiDelayMax"></div>
       </div>
-      <div>
-        <label>Max wait (seconds)</label>
-        <input type="text" id="aiDelayMax" placeholder="180" onchange="rules.ai.humanDelay.maxSec=parseInt(this.value)||0">
+      <p class="help">AI chờ ngẫu nhiên trong khoảng này rồi mới trả lời, cho giống người thật.</p>
+      <details>
+        <summary>Nâng cao</summary>
+        <label>Model AI</label>
+        <input type="text" id="aiModel" placeholder="gemini-3.6-flash">
+      </details>
+    </div>
+
+    <button class="btn big" onclick="saveSettings()">💾 Lưu cài đặt</button>
+  </section>
+</div>
+
+<!-- Sheet: sửa / thêm video -->
+<div id="editor" class="sheet-bg hidden" onclick="if(event.target===this)closeEditor()">
+  <div class="sheet">
+    <div class="sheet-head">
+      <h2 id="edTitle">Thêm video</h2>
+      <button class="x" onclick="closeEditor()">×</button>
+    </div>
+
+    <label>Video</label>
+    <div class="picked" onclick="openPicker()" id="edVideo"></div>
+
+    <label>Tên (để bạn dễ nhớ)</label>
+    <input type="text" id="edName" placeholder="VD: Nước hoa Dior – 30/9">
+
+    <label>Từ khoá người xem sẽ comment</label>
+    <input type="text" id="edKeyword" placeholder="VD: SCENT">
+    <p class="help">Comment có chứa từ này (viết hoa hay thường đều được) là bot nhắn.</p>
+    <div class="toggle-row" style="margin-top:10px">
+      <div><b>Trả lời mọi comment</b><p class="muted">Không cần từ khoá</p></div>
+      <label class="switch"><input type="checkbox" id="edAny" onchange="syncEditor()"><span class="slider"></span></label>
+    </div>
+
+    <label>Link muốn gửi</label>
+    <input type="text" id="edLink" placeholder="https://…">
+
+    <div class="toggle-row">
+      <div><b>🔒 Phải follow mới nhận link</b><p class="muted">Tin đầu có nút bấm, bot kiểm tra follow rồi mới gửi link</p></div>
+      <label class="switch"><input type="checkbox" id="edGate" onchange="gateChanged()"><span class="slider"></span></label>
+    </div>
+
+    <label id="edDmLabel">Tin nhắn đầu tiên</label>
+    <textarea id="edDm" style="min-height:110px"></textarea>
+    <p class="help">Viết nhiều phiên bản, cách nhau bằng một dòng chỉ có <b>---</b>, bot sẽ chọn ngẫu nhiên. <b>{{username}}</b> = tên người đó, <b>{{link}}</b> = link ở trên.</p>
+
+    <div id="edGateBox" class="gate">
+      <label>Tin gửi kèm link (khi họ đã follow)</label>
+      <textarea id="edLinkMsg"></textarea>
+    </div>
+
+    <label>Trả lời công khai dưới comment</label>
+    <textarea id="edPublic" placeholder="Mỗi dòng một câu"></textarea>
+    <p class="help">Mỗi dòng một câu, bot chọn ngẫu nhiên. Để trống nếu không muốn trả lời công khai.</p>
+
+    <details>
+      <summary>Tuỳ chọn nâng cao</summary>
+      <div class="grid2">
+        <div><label>Chờ ít nhất (giây)</label><input type="text" id="edDelayMin"></div>
+        <div><label>Chờ nhiều nhất (giây)</label><input type="text" id="edDelayMax"></div>
       </div>
+      <p class="help">Sau khi họ comment, bot chờ ngẫu nhiên trong khoảng này rồi mới nhắn.</p>
+      <div id="edGateAdv">
+        <label>Chữ trên nút bấm (tối đa 20 ký tự)</label>
+        <input type="text" id="edButton" maxlength="20" placeholder="Send me the link 🔗">
+        <label>Tin nhắc khi họ chưa follow</label>
+        <textarea id="edNudge" placeholder="Looks like you're not following me yet 👀 Follow @{{me}} then tap the button again!"></textarea>
+      </div>
+      <div class="toggle-row">
+        <div><b>🤖 Để AI tự viết tin đầu tiên</b><p class="muted">Khi bật, ô "Tin nhắn đầu tiên" là lời dặn cho AI</p></div>
+        <label class="switch"><input type="checkbox" id="edAi"><span class="slider"></span></label>
+      </div>
+    </details>
+
+    <div class="sheet-foot">
+      <button class="btn danger small hidden" id="edDelete" onclick="deleteRule()">Xoá</button>
+      <span style="flex:1"></span>
+      <button class="btn ghost" onclick="closeEditor()">Huỷ</button>
+      <button class="btn" onclick="saveEditor()">Lưu</button>
     </div>
-  </div>
-
-  <h2>💬 Comment rules — when someone comments on your posts</h2>
-  <div id="commentRules"></div>
-  <button class="small secondary" onclick="addRule('comment')">+ Add comment rule</button>
-
-  <h2>📩 DM rules — when someone sends you a message</h2>
-  <div id="dmRules"></div>
-  <button class="small secondary" onclick="addRule('dm')">+ Add DM rule</button>
-
-  <h2>👥 Contacts</h2>
-  <div class="card">
-    <div class="row">
-      <input type="text" id="contactSearch" placeholder="Search username…" style="max-width:260px" onkeydown="if(event.key==='Enter')loadContacts()">
-      <button class="small secondary" onclick="loadContacts()">Search / refresh</button>
-      <button class="small secondary" onclick="exportCsv()">⬇️ Export CSV</button>
-      <span class="hint" id="contactCount" style="margin:0"></span>
-    </div>
-    <div id="contacts" class="table-wrap"></div>
-  </div>
-
-  <h2>📜 Recent activity</h2>
-  <div class="card log" id="activity">Loading…</div>
-  <button class="small secondary" onclick="loadStatus()">Refresh activity</button>
-
-  <h2>🧰 Backup</h2>
-  <div class="card">
-    <p class="hint" style="margin-top:0">Free hosting can reset files on redeploy. After changing rules, copy this backup and paste it into the <b>RULES_JSON</b> environment variable on Render so your rules always survive restarts.</p>
-    <button class="small secondary" onclick="copyBackup()">Copy rules backup</button>
-    <span id="copyMsg" class="hint"></span>
   </div>
 </div>
 
-<div class="toolbar hidden" id="toolbar">
-  <div class="toolbar-inner">
-    <button onclick="save()">💾 Save rules</button>
-    <span class="msg" id="saveMsg"></span>
+<!-- Sheet: chọn video -->
+<div id="picker" class="sheet-bg hidden" style="z-index:30" onclick="if(event.target===this)closePicker()">
+  <div class="sheet">
+    <div class="sheet-head">
+      <h2>Chọn video</h2>
+      <button class="x" onclick="closePicker()">×</button>
+    </div>
+    <p class="muted">Bấm vào video muốn gắn. Chọn "Tất cả video" nếu từ khoá dùng chung.</p>
+    <div class="mgrid" id="mgrid"><p class="muted">Đang tải…</p></div>
+    <details>
+      <summary>Không thấy video? Dán ID thủ công</summary>
+      <div class="row" style="margin-top:10px">
+        <input type="text" id="manualId" placeholder="ID video" style="flex:1">
+        <button class="btn small" onclick="pickMedia(document.getElementById('manualId').value.trim())">Dùng ID này</button>
+      </div>
+    </details>
   </div>
 </div>
 
 <script>
-let rules = { commentRules: [], dmRules: [] };
+let rules = { commentRules: [], dmRules: [], ai: {}, settings: {} };
 let stats = {};
+let status = {};
 let contacts = [];
+let media = [];           // recent posts from Instagram
+let mediaLoaded = false;
+let editing = -1;          // index in rules.commentRules, -1 = new
+let draftMediaId = '';
 const pwKey = 'autodm_pw';
+
+const DEF = {
+  dmGate: "hey {{username}}! saw your comment 🙌 tap the button below and I'll send it over\n---\nyo {{username}}, got you 👀 tap below and it's yours",
+  dmDirect: "hey {{username}}! here you go 👉 {{link}}\n---\nyo {{username}}, got you 🔥 {{link}}",
+  linkMsg: "here you go {{username}} 👉 {{link}}\nthanks for the follow 🙏",
+  publicReply: "check your DMs 📩\njust sent it 👀\nDM'd you 🔥",
+};
 
 function headers() {
   return { 'Content-Type': 'application/json', 'x-dashboard-password': localStorage.getItem(pwKey) || '' };
 }
-
-async function doLogin() {
-  localStorage.setItem(pwKey, document.getElementById('pw').value);
-  const ok = await tryLoad();
-  if (!ok) document.getElementById('loginErr').textContent = 'Wrong password — try again.';
+function $(id) { return document.getElementById(id); }
+function esc(s) {
+  return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+function toast(msg, bad) {
+  const t = document.createElement('div');
+  t.className = 'toast' + (bad ? ' bad' : '');
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 2600);
 }
 
+// ---------- đăng nhập ----------
+async function doLogin() {
+  localStorage.setItem(pwKey, $('pw').value);
+  if (!(await tryLoad())) $('loginErr').textContent = 'Sai mật khẩu, thử lại nhé.';
+}
 async function tryLoad() {
   try {
     const res = await fetch('/api/rules', { headers: headers() });
     if (!res.ok) return false;
     rules = await res.json();
-    document.getElementById('login').classList.add('hidden');
-    document.getElementById('app').classList.remove('hidden');
-    document.getElementById('toolbar').classList.remove('hidden');
-    render();
+    $('login').classList.add('hidden');
+    $('app').classList.remove('hidden');
+    renderVideos();
+    renderSettings();
     loadStatus();
-    loadContacts();
+    loadMedia();
     return true;
   } catch { return false; }
 }
 
-function esc(s) {
-  return (s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
+function showTab(name) {
+  document.querySelectorAll('.tabs button').forEach(b => b.classList.toggle('active', b.dataset.tab === name));
+  ['videos', 'contacts', 'log', 'settings'].forEach(t => $('tab-' + t).classList.toggle('hidden', t !== name));
+  if (name === 'contacts') loadContacts();
+  if (name === 'log') loadStatus();
 }
 
-function matchOptions(sel) {
-  const opts = [
-    ['contains', 'Comment contains the keyword'],
-    ['exact', 'Comment is exactly the keyword'],
-    ['any', '⭐ Every comment / message (no keyword needed)'],
-  ];
-  return opts.map(([v, t]) => `<option value="${v}" ${sel===v?'selected':''}>${t}</option>`).join('');
-}
-
-function render() {
-  document.getElementById('commentRules').innerHTML = rules.commentRules.map((r, i) => `
-    <div class="card">
-      <div class="rule-head">
-        <input type="text" style="max-width:260px" value="${esc(r.name)}" placeholder="Rule name"
-          onchange="rules.commentRules[${i}].name=this.value">
-        <div class="row">
-          <span class="badge ${r.enabled!==false?'on':''}">${r.enabled!==false?'ON':'OFF'}</span>
-          <button class="small secondary" onclick="toggle('comment',${i})">${r.enabled!==false?'Turn off':'Turn on'}</button>
-          <button class="small danger" onclick="removeRule('comment',${i})">Delete</button>
-        </div>
-      </div>
-      <div class="grid2">
-        <div>
-          <label>When…</label>
-          <select onchange="rules.commentRules[${i}].matchType=this.value; render()">${matchOptions(r.matchType)}</select>
-        </div>
-        <div>
-          <label>Keyword ${r.matchType==='any'?'(not needed for this mode)':''}</label>
-          <input type="text" value="${esc(r.keyword)}" placeholder="e.g. LINK" ${r.matchType==='any'?'disabled':''}
-            onchange="rules.commentRules[${i}].keyword=this.value">
-        </div>
-      </div>
-      <label class="row" style="align-items:center;gap:8px;color:var(--text)">
-        <input type="checkbox" style="width:auto" ${r.useAi?'checked':''}
-          onchange="rules.commentRules[${i}].useAi=this.checked; render()"> 🤖 Use AI to write the DM
-      </label>
-      <label>${r.useAi ? 'Instructions for the AI (what to tell them)' : 'DM to send them ({{username}} = their name). Several versions? Put a line with only --- between them, the bot picks one at random.'}${r.requireFollow ? ' — this first DM should ask them to tap the button below' : ''}</label>
-      <textarea onchange="rules.commentRules[${i}].dmMessage=this.value" placeholder="hey {{username}}! saw your comment 🙌 tap the button and I'll send it
----
-yo {{username}}, got you — tap below 👇">${esc(r.dmMessage)}</textarea>
-      <label class="row" style="align-items:center;gap:8px;color:var(--text)">
-        <input type="checkbox" style="width:auto" ${r.requireFollow?'checked':''}
-          onchange="rules.commentRules[${i}].requireFollow=this.checked; render()"> 🔒 Only send the link to people who follow me
-      </label>
-      ${r.requireFollow ? `
-      <div class="gate">
-        <label>Button text (max 20 characters)</label>
-        <input type="text" maxlength="20" value="${esc(r.gateButton)}" placeholder="Send me the link 🔗"
-          onchange="rules.commentRules[${i}].gateButton=this.value">
-        <label>Link message — sent once they follow ({{username}} works, --- for versions)</label>
-        <textarea onchange="rules.commentRules[${i}].linkMessage=this.value" placeholder="here you go {{username}} 👉 https://...">${esc(r.linkMessage)}</textarea>
-        <label>If they don't follow yet</label>
-        <textarea onchange="rules.commentRules[${i}].notFollowingMessage=this.value" placeholder="Looks like you're not following me yet 👀 Follow @{{me}} then tap the button again!">${esc(r.notFollowingMessage)}</textarea>
-      </div>` : ''}
-      <label>Public replies under their comment — one per line, the bot picks one at random (optional)</label>
-      <textarea style="min-height:70px" onchange="rules.commentRules[${i}].publicReply=this.value" placeholder="Check your DMs! 📩
-sent 👀
-just DM'd you 🔥">${esc(r.publicReply)}</textarea>
-      <div class="grid2">
-        <div>
-          <label>⏱ Wait before sending — min seconds</label>
-          <input type="text" value="${r.delayMin ?? ''}" placeholder="0"
-            onchange="rules.commentRules[${i}].delayMin=parseInt(this.value)||0">
-        </div>
-        <div>
-          <label>⏱ max seconds (random time in between)</label>
-          <input type="text" value="${r.delayMax ?? ''}" placeholder="0"
-            onchange="rules.commentRules[${i}].delayMax=parseInt(this.value)||0">
-        </div>
-      </div>
-      <label>Only for one specific post? (optional — paste the post's media ID, empty = all posts)</label>
-      <input type="text" value="${esc(r.mediaId)}" placeholder="Leave empty for all posts"
-        onchange="rules.commentRules[${i}].mediaId=this.value">
-      ${statsLine(r.id, true)}
-    </div>`).join('');
-
-  document.getElementById('dmRules').innerHTML = rules.dmRules.map((r, i) => `
-    <div class="card">
-      <div class="rule-head">
-        <input type="text" style="max-width:260px" value="${esc(r.name)}" placeholder="Rule name"
-          onchange="rules.dmRules[${i}].name=this.value">
-        <div class="row">
-          <span class="badge ${r.enabled!==false?'on':''}">${r.enabled!==false?'ON':'OFF'}</span>
-          <button class="small secondary" onclick="toggle('dm',${i})">${r.enabled!==false?'Turn off':'Turn on'}</button>
-          <button class="small danger" onclick="removeRule('dm',${i})">Delete</button>
-        </div>
-      </div>
-      <div class="grid2">
-        <div>
-          <label>When…</label>
-          <select onchange="rules.dmRules[${i}].matchType=this.value; render()">${matchOptions(r.matchType)}</select>
-        </div>
-        <div>
-          <label>Keyword ${r.matchType==='any'?'(not needed for this mode)':''}</label>
-          <input type="text" value="${esc(r.keyword)}" ${r.matchType==='any'?'disabled':''}
-            onchange="rules.dmRules[${i}].keyword=this.value">
-        </div>
-      </div>
-      <label class="row" style="align-items:center;gap:8px;color:var(--text)">
-        <input type="checkbox" style="width:auto" ${r.useAi?'checked':''}
-          onchange="rules.dmRules[${i}].useAi=this.checked; render()"> 🤖 Use AI to write the reply
-      </label>
-      <label>${r.useAi ? 'Instructions for the AI (what to say, link to include)' : 'Auto-reply message ({{username}} = their name)'}</label>
-      <textarea onchange="rules.dmRules[${i}].reply=this.value">${esc(r.reply)}</textarea>
-      ${statsLine(r.id, false)}
-    </div>`).join('');
-  renderAi();
-  const cd = document.getElementById('cooldownHours');
-  if (cd && document.activeElement !== cd) cd.value = rules.settings?.cooldownHours ?? 24;
-}
-
-function statsLine(id, isComment) {
-  const s = stats[id];
-  if (!s) return '<p class="hint stats">No activity yet</p>';
-  const parts = [`${s.triggered || 0} triggered`, `${s.dmSent || 0} DMs sent`];
-  if (isComment) {
-    if (s.linkSent) parts.push(`${s.linkSent} links unlocked`);
-    if (s.notFollowing) parts.push(`${s.notFollowing} asked to follow`);
-    if (s.cooldown) parts.push(`${s.cooldown} skipped (cooldown)`);
-  }
-  return `<p class="hint stats">📊 ${parts.join(' · ')}</p>`;
-}
-
-function renderAi() {
-  if (!rules.ai) rules.ai = { enabled: false, model: 'gemini-3.6-flash', persona: '' };
-  const on = !!rules.ai.enabled;
-  const badge = document.getElementById('aiBadge');
-  badge.textContent = on ? 'ON' : 'OFF';
-  badge.className = 'badge' + (on ? ' on' : '');
-  document.getElementById('aiToggleBtn').textContent = on ? 'Turn off' : 'Turn on';
-  const model = document.getElementById('aiModel');
-  const persona = document.getElementById('aiPersona');
-  const goal = document.getElementById('aiGoal');
-  if (document.activeElement !== model) model.value = rules.ai.model || '';
-  if (document.activeElement !== persona) persona.value = rules.ai.persona || '';
-  if (goal && document.activeElement !== goal) goal.value = rules.ai.goal || '';
-  if (!rules.ai.humanDelay) rules.ai.humanDelay = { enabled: true, minSec: 40, maxSec: 180 };
-  const dOn = document.getElementById('aiDelayOn');
-  const dMin = document.getElementById('aiDelayMin');
-  const dMax = document.getElementById('aiDelayMax');
-  if (dOn) dOn.checked = rules.ai.humanDelay.enabled !== false;
-  if (dMin && document.activeElement !== dMin) dMin.value = rules.ai.humanDelay.minSec ?? 40;
-  if (dMax && document.activeElement !== dMax) dMax.value = rules.ai.humanDelay.maxSec ?? 180;
-}
-
-function toggleAi() {
-  if (!rules.ai) rules.ai = {};
-  rules.ai.enabled = !rules.ai.enabled;
-  renderAi();
-}
-
-function addRule(kind) {
-  if (kind === 'comment') {
-    rules.commentRules.push({ name: 'New rule', keyword: '', matchType: 'contains', dmMessage: '', publicReply: '', mediaId: '', useAi: false, enabled: true, delayMin: 45, delayMax: 90, requireFollow: false });
-  } else {
-    rules.dmRules.push({ name: 'New rule', keyword: '', matchType: 'contains', reply: '', useAi: false, enabled: true });
-  }
-  render();
-}
-
-function removeRule(kind, i) {
-  (kind === 'comment' ? rules.commentRules : rules.dmRules).splice(i, 1);
-  render();
-}
-
-function toggle(kind, i) {
-  const r = (kind === 'comment' ? rules.commentRules : rules.dmRules)[i];
-  r.enabled = r.enabled === false;
-  render();
-}
-
-async function save() {
-  const msg = document.getElementById('saveMsg');
-  msg.textContent = 'Saving…';
-  if (!rules.settings) rules.settings = {};
-  rules.settings.cooldownHours = parseFloat(document.getElementById('cooldownHours').value) || 0;
+// ---------- lưu ----------
+async function saveRules(okMsg) {
   const res = await fetch('/api/rules', { method: 'PUT', headers: headers(), body: JSON.stringify(rules) });
   const data = await res.json().catch(() => ({}));
-  if (res.ok && data.rules) { rules = data.rules; render(); }
-  msg.textContent = res.ok ? '✅ Saved! Rules are live.' : '❌ Save failed — check password.';
-  setTimeout(() => msg.textContent = '', 4000);
+  if (res.ok && data.rules) rules = data.rules;
+  toast(res.ok ? (okMsg || '✅ Đã lưu') : '❌ Lưu thất bại', !res.ok);
+  renderVideos();
+  return res.ok;
 }
 
+// ---------- video ----------
+async function loadMedia() {
+  try {
+    const res = await fetch('/api/media', { headers: headers() });
+    media = res.ok ? await res.json() : [];
+  } catch { media = []; }
+  mediaLoaded = true;
+  renderVideos();
+}
+function findMedia(id) { return media.find(m => String(m.id) === String(id)); }
+function thumbHtml(id) {
+  if (!id) return '<div class="thumb">🌐</div>';
+  const m = findMedia(id);
+  const src = m && (m.thumbnail_url || (m.media_type === 'IMAGE' ? m.media_url : ''));
+  return src ? `<div class="thumb"><img src="${esc(src)}" alt=""></div>` : '<div class="thumb">🎬</div>';
+}
+function shortCaption(id) {
+  const m = findMedia(id);
+  if (!m) return id ? 'Video ID ' + id : '';
+  return (m.caption || '').split('\n')[0].slice(0, 60) || 'Video ' + (m.timestamp || '').slice(0, 10);
+}
+
+function renderVideos() {
+  const list = rules.commentRules || [];
+  if (!list.length) {
+    $('videoList').innerHTML = '<div class="card empty">Chưa có video nào.<br>Bấm <b>＋ Thêm video mới</b> để bắt đầu.</div>';
+    return;
+  }
+  $('videoList').innerHTML = list.map((r, i) => {
+    const on = r.enabled !== false;
+    const s = stats[r.id] || {};
+    const kw = r.matchType === 'any' ? 'Mọi comment' : (r.keyword ? `Từ khoá: ${esc(r.keyword)}` : '⚠️ Chưa có từ khoá');
+    const statParts = [`<b>${s.triggered || 0}</b> comment`, `<b>${s.dmSent || 0}</b> tin đã gửi`];
+    if (r.requireFollow) statParts.push(`<b>${s.linkSent || 0}</b> link đã gửi`);
+    return `
+    <div class="card vcard ${on ? '' : 'off'}">
+      ${thumbHtml(r.mediaId)}
+      <div class="vbody">
+        <div class="vhead">
+          <div class="vname">${esc(r.name || 'Chưa đặt tên')}</div>
+          <label class="switch" title="${on ? 'Đang bật' : 'Đang tắt'}"><input type="checkbox" ${on ? 'checked' : ''} onchange="toggleRule(${i}, this.checked)"><span class="slider"></span></label>
+        </div>
+        <div class="chips">
+          <span class="chip kw">${kw}</span>
+          <span class="chip">${r.mediaId ? '🎬 ' + esc(shortCaption(r.mediaId)) : '🌐 Tất cả video'}</span>
+          ${r.requireFollow ? '<span class="chip">🔒 Cần follow</span>' : ''}
+          ${r.useAi ? '<span class="chip">🤖 AI</span>' : ''}
+        </div>
+        <div class="row" style="justify-content:space-between">
+          <span class="stats">${statParts.join(' · ')}</span>
+          <button class="btn ghost small" onclick="openEditor(${i})">✏️ Sửa</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function toggleRule(i, on) {
+  rules.commentRules[i].enabled = on;
+  await saveRules(on ? '✅ Đã bật' : '⏸️ Đã tắt');
+}
+
+// ---------- form sửa ----------
+function openEditor(i) {
+  editing = i;
+  const r = i >= 0 ? rules.commentRules[i] : {
+    name: '', keyword: '', matchType: 'contains', link: '', requireFollow: true,
+    dmMessage: DEF.dmGate, linkMessage: DEF.linkMsg, publicReply: DEF.publicReply,
+    delayMin: 45, delayMax: 90, gateButton: '', notFollowingMessage: '', useAi: false, mediaId: '', enabled: true,
+  };
+  $('edTitle').textContent = i >= 0 ? 'Sửa video' : 'Thêm video';
+  $('edDelete').classList.toggle('hidden', i < 0);
+  $('edName').value = r.name || '';
+  $('edKeyword').value = r.keyword || '';
+  $('edAny').checked = r.matchType === 'any';
+  $('edLink').value = r.link || '';
+  $('edGate').checked = !!r.requireFollow;
+  $('edDm').value = r.dmMessage || '';
+  $('edLinkMsg').value = r.linkMessage || '';
+  $('edPublic').value = r.publicReply || '';
+  $('edDelayMin').value = r.delayMin ?? '';
+  $('edDelayMax').value = r.delayMax ?? '';
+  $('edButton').value = r.gateButton || '';
+  $('edNudge').value = r.notFollowingMessage || '';
+  $('edAi').checked = !!r.useAi;
+  draftMediaId = r.mediaId || '';
+  renderPicked();
+  syncEditor();
+  $('editor').classList.remove('hidden');
+  document.body.style.overflow = 'hidden';
+}
+function closeEditor() {
+  $('editor').classList.add('hidden');
+  document.body.style.overflow = '';
+}
+function syncEditor() {
+  const gate = $('edGate').checked;
+  $('edGateBox').classList.toggle('hidden', !gate);
+  $('edGateAdv').classList.toggle('hidden', !gate);
+  $('edKeyword').disabled = $('edAny').checked;
+  $('edDmLabel').textContent = gate ? 'Tin nhắn đầu tiên (kèm nút "gửi link")' : 'Tin nhắn gửi cho họ';
+}
+// Khi bật/tắt "phải follow", đổi tin mặc định cho khớp (nếu bạn chưa tự sửa).
+function gateChanged() {
+  const dm = $('edDm');
+  if ($('edGate').checked && dm.value.trim() === DEF.dmDirect) dm.value = DEF.dmGate;
+  if (!$('edGate').checked && dm.value.trim() === DEF.dmGate) dm.value = DEF.dmDirect;
+  if ($('edGate').checked && !$('edLinkMsg').value.trim()) $('edLinkMsg').value = DEF.linkMsg;
+  syncEditor();
+}
+function renderPicked() {
+  $('edVideo').innerHTML = draftMediaId
+    ? `${thumbHtml(draftMediaId)}<div><b>${esc(shortCaption(draftMediaId))}</b><p class="muted">Bấm để đổi video</p></div>`
+    : `<div class="thumb">🌐</div><div><b>Tất cả video</b><p class="muted">Bấm để chọn một video cụ thể</p></div>`;
+}
+
+async function saveEditor() {
+  const any = $('edAny').checked;
+  const keyword = $('edKeyword').value.trim();
+  const gate = $('edGate').checked;
+  const link = $('edLink').value.trim();
+  if (!any && !keyword) { toast('Nhập từ khoá hoặc bật "Trả lời mọi comment"', true); return; }
+  if (gate && !link && !/https?:\/\//.test($('edLinkMsg').value)) { toast('Nhập link muốn gửi nhé', true); return; }
+  const base = editing >= 0 ? rules.commentRules[editing] : { enabled: true };
+  const r = Object.assign({}, base, {
+    name: $('edName').value.trim() || (keyword ? `Từ khoá ${keyword}` : 'Mọi comment'),
+    keyword, matchType: any ? 'any' : 'contains', link, mediaId: draftMediaId,
+    requireFollow: gate, dmMessage: $('edDm').value, linkMessage: $('edLinkMsg').value,
+    publicReply: $('edPublic').value,
+    delayMin: parseInt($('edDelayMin').value) || 0, delayMax: parseInt($('edDelayMax').value) || 0,
+    gateButton: $('edButton').value.trim(), notFollowingMessage: $('edNudge').value, useAi: $('edAi').checked,
+  });
+  if (editing >= 0) rules.commentRules[editing] = r; else rules.commentRules.push(r);
+  if (await saveRules(editing >= 0 ? '✅ Đã lưu thay đổi' : '✅ Đã thêm video')) closeEditor();
+}
+async function deleteRule() {
+  if (editing < 0 || !confirm('Xoá video này? Thống kê của nó cũng mất.')) return;
+  rules.commentRules.splice(editing, 1);
+  if (await saveRules('🗑️ Đã xoá')) closeEditor();
+}
+
+// ---------- chọn video ----------
+function openPicker() {
+  $('picker').classList.remove('hidden');
+  renderPicker();
+  if (!mediaLoaded) loadMedia().then(renderPicker);
+}
+function closePicker() { $('picker').classList.add('hidden'); }
+function renderPicker() {
+  const all = `<div class="mitem all ${draftMediaId ? '' : 'sel'}" onclick="pickMedia('')"><div style="font-size:30px">🌐</div><p style="height:auto">Tất cả video</p></div>`;
+  if (!mediaLoaded) { $('mgrid').innerHTML = all + '<p class="muted">Đang tải video…</p>'; return; }
+  if (!media.length) { $('mgrid').innerHTML = all + '<p class="muted">Không tải được danh sách video. Dán ID thủ công ở dưới.</p>'; return; }
+  $('mgrid').innerHTML = all + media.map(m => {
+    const src = m.thumbnail_url || (m.media_type === 'IMAGE' ? m.media_url : '');
+    const cap = (m.caption || '').split('\n')[0].slice(0, 50) || (m.timestamp || '').slice(0, 10);
+    return `<div class="mitem ${String(m.id) === String(draftMediaId) ? 'sel' : ''}" onclick="pickMedia('${esc(m.id)}')">
+      ${src ? `<img src="${esc(src)}" alt="" loading="lazy">` : '<div class="noimg">🎬</div>'}
+      <p>${esc(cap)}</p></div>`;
+  }).join('');
+}
+function pickMedia(id) {
+  draftMediaId = id;
+  renderPicked();
+  closePicker();
+}
+
+// ---------- trạng thái + nhật ký ----------
 async function loadStatus() {
   const res = await fetch('/api/status', { headers: headers() });
   if (!res.ok) return;
-  const s = await res.json();
-  const el = document.getElementById('connStatus');
-  if (s.connected) {
-    el.innerHTML = `<span class="status-dot" style="background:var(--green)"></span>Connected as <b>@${esc(s.username)}</b>`;
-  } else if (s.tokenSet) {
-    el.innerHTML = `<span class="status-dot" style="background:var(--yellow)"></span>Token set but not verified — click Reconnect`;
-  } else {
-    el.innerHTML = `<span class="status-dot" style="background:var(--red)"></span>Not connected — set IG_ACCESS_TOKEN (see setup guide)`;
-  }
-  stats = s.stats || {};
-  render();
-  document.getElementById('dbStatus').innerHTML = s.database
-    ? '💾 Saved in your database — rules and contacts survive restarts.'
-    : '<span style="color:var(--yellow)">⚠️ No database yet — rules and contacts reset when the server redeploys. Add SUPABASE_URL and SUPABASE_KEY on Render.</span>';
-  const aiHint = document.getElementById('aiKeyHint');
-  if (aiHint) {
-    aiHint.textContent = s.aiKeySet ? '' : '⚠️ No GEMINI_API_KEY set yet — add it in your Render environment variables, then AI replies will work.';
-  }
-  document.getElementById('activity').innerHTML = (s.activity || []).map(a =>
-    `<div class="t-${a.type}">${a.time.slice(5,19).replace('T',' ')} · ${esc(a.detail)}</div>`
-  ).join('') || '<div>No activity yet — try commenting a keyword on one of your posts!</div>';
+  status = await res.json();
+  stats = status.stats || {};
+  const pill = $('statusPill');
+  if (status.connected) pill.innerHTML = `<span class="dot" style="background:var(--green)"></span>Đang chạy · @${esc(status.username)}`;
+  else if (status.tokenSet) pill.innerHTML = `<span class="dot" style="background:var(--yellow)"></span>Token chưa xác nhận — vào Cài đặt`;
+  else pill.innerHTML = `<span class="dot" style="background:var(--red)"></span>Chưa kết nối Instagram`;
+  $('connText').textContent = status.connected ? `Đã kết nối với @${status.username}.` : 'Chưa kết nối được. Kiểm tra IG_ACCESS_TOKEN trên Render rồi bấm "Kết nối lại".';
+  $('dbText').innerHTML = status.database ? '💾 Dữ liệu lưu trong database, không bị mất khi server khởi động lại.' : '<span style="color:var(--yellow)">⚠️ Chưa có database — dữ liệu sẽ mất khi server deploy lại.</span>';
+  $('aiKeyHint').textContent = status.aiKeySet ? '' : '⚠️ Chưa có GEMINI_API_KEY trên Render nên AI chưa chạy được.';
+  renderVideos();
+  renderLog();
+}
+
+function describe(a) {
+  const d = a.detail;
+  if (a.type === 'dm') return { cls: 'ok', text: '📩 ' + d.replace('DM sent to', 'Đã nhắn').replace('Auto-replied to DM from', 'AI đã trả lời').replace('Link sent to', 'Đã gửi link cho').replace("isn't following yet — asked them to follow first", 'chưa follow → đã nhắc follow') };
+  if (a.type === 'reply') return { cls: 'ok', text: '💬 ' + d.replace('Public reply posted under', 'Đã trả lời công khai dưới comment của').replace("'s comment", '') };
+  if (a.type === 'skip') return { cls: '', text: '⏭️ ' + d.replace('matched no rule', 'không khớp từ khoá nào').replace('Comment from', 'Comment của') };
+  if (a.type === 'error') return { cls: 'err', text: '❌ ' + d };
+  if (a.type === 'warn') return { cls: 'warn', text: '⚠️ ' + d };
+  return { cls: '', text: 'ℹ️ ' + d };
+}
+function renderLog() {
+  const raw = $('showRaw').checked;
+  const rows = (status.activity || []).filter(a => raw || a.type !== 'webhook');
+  $('log').innerHTML = rows.map(a => {
+    const t = new Date(a.time).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    if (a.type === 'webhook') return `<div><span class="t">${t}</span><span class="raw">${esc(a.detail)}</span></div>`;
+    const d = describe(a);
+    return `<div><span class="t">${t}</span><span class="${d.cls}">${esc(d.text)}</span></div>`;
+  }).join('') || '<p class="muted" style="padding:16px 0">Chưa có hoạt động. Thử comment từ khoá vào một video nhé!</p>';
 }
 
 async function reconnect() {
   await fetch('/api/reconnect', { method: 'POST', headers: headers() });
-  loadStatus();
+  await loadStatus();
+  toast(status.connected ? '✅ Đã kết nối' : '❌ Chưa kết nối được', !status.connected);
 }
-
 async function subscribe() {
   const res = await fetch('/api/subscribe', { method: 'POST', headers: headers() });
   const data = await res.json().catch(() => ({}));
-  alert(res.ok ? '✅ Webhooks activated! Instagram will now send comments & DMs to AutoDM.' : '❌ Failed: ' + (data.error || 'unknown error'));
+  toast(res.ok ? '✅ Đã kích hoạt' : '❌ ' + (data.error || 'Lỗi'), !res.ok);
   loadStatus();
 }
 
+// ---------- khách ----------
 async function loadContacts() {
-  const q = document.getElementById('contactSearch').value;
-  const res = await fetch('/api/contacts?q=' + encodeURIComponent(q), { headers: headers() });
-  const el = document.getElementById('contacts');
-  if (!res.ok) { el.innerHTML = '<p class="hint">Could not load contacts.</p>'; return; }
+  const res = await fetch('/api/contacts?q=' + encodeURIComponent($('contactSearch').value), { headers: headers() });
+  if (!res.ok) { $('contacts').innerHTML = '<p class="muted">Không tải được danh sách.</p>'; return; }
   contacts = await res.json();
-  document.getElementById('contactCount').textContent = `${contacts.length} contact${contacts.length === 1 ? '' : 's'}`;
-  if (!contacts.length) { el.innerHTML = '<p class="hint">No contacts yet — they appear here when people comment or DM.</p>'; return; }
-  const day = (t) => (t || '').slice(0, 10);
+  $('contactCount').textContent = `${contacts.length} người`;
+  if (!contacts.length) { $('contacts').innerHTML = '<p class="muted" style="padding:10px 0">Chưa có ai. Người comment hoặc nhắn tin sẽ hiện ở đây.</p>'; return; }
+  const day = (t) => t ? new Date(t).toLocaleDateString('vi-VN') : '';
   const follow = (f) => f === true ? '✅' : f === false ? '❌' : '–';
-  el.innerHTML = `<table><thead><tr><th>Username</th><th>Keywords</th><th>Comments</th><th>DMs</th><th>Follows</th><th>First seen</th><th>Last seen</th></tr></thead><tbody>` +
+  $('contacts').innerHTML = `<table><thead><tr><th>Tên</th><th>Từ khoá</th><th>Comment</th><th>Tin nhắn</th><th>Follow</th><th>Lần đầu</th><th>Gần nhất</th></tr></thead><tbody>` +
     contacts.map(c => `<tr>
       <td>${c.username ? `<a href="https://instagram.com/${esc(c.username)}" target="_blank" rel="noopener">@${esc(c.username)}</a>` : esc(c.id)}</td>
-      <td>${esc((c.keywords || []).join(', '))}</td>
-      <td>${c.comments || 0}</td><td>${c.dms || 0}</td><td>${follow(c.follows)}</td>
-      <td>${day(c.first_seen)}</td><td>${day(c.last_seen)}</td></tr>`).join('') +
-    '</tbody></table>';
+      <td>${esc((c.keywords || []).join(', '))}</td><td>${c.comments || 0}</td><td>${c.dms || 0}</td>
+      <td>${follow(c.follows)}</td><td>${day(c.first_seen)}</td><td>${day(c.last_seen)}</td></tr>`).join('') + '</tbody></table>';
 }
-
 function exportCsv() {
   const cols = ['username', 'id', 'keywords', 'comments', 'dms', 'follows', 'first_seen', 'last_seen', 'last_text'];
   const cell = (v) => `"${String(Array.isArray(v) ? v.join(' | ') : v ?? '').replace(/"/g, '""')}"`;
   const csv = [cols.join(','), ...contacts.map(c => cols.map(k => cell(c[k])).join(','))].join('\n');
   const a = document.createElement('a');
-  a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
-  a.download = `autodm-contacts-${new Date().toISOString().slice(0, 10)}.csv`;
+  a.href = URL.createObjectURL(new Blob(['﻿' + csv], { type: 'text/csv' }));
+  a.download = `autodm-khach-${new Date().toISOString().slice(0, 10)}.csv`;
   a.click();
 }
 
-function copyBackup() {
-  navigator.clipboard.writeText(JSON.stringify(rules));
-  document.getElementById('copyMsg').textContent = '✅ Copied!';
-  setTimeout(() => document.getElementById('copyMsg').textContent = '', 3000);
+// ---------- cài đặt ----------
+function renderSettings() {
+  const ai = rules.ai || {};
+  const d = ai.humanDelay || {};
+  $('aiOn').checked = !!ai.enabled;
+  $('aiPersona').value = ai.persona || '';
+  $('aiGoal').value = ai.goal || '';
+  $('aiModel').value = ai.model || '';
+  $('aiDelayMin').value = d.minSec ?? 40;
+  $('aiDelayMax').value = d.maxSec ?? 180;
+  $('cooldownHours').value = rules.settings?.cooldownHours ?? 24;
+  // Tin nhắn trực tiếp: hiện công tắc cho từng rule DM (thường chỉ có 1 rule "AI trả lời mọi tin").
+  $('dmRules').innerHTML = (rules.dmRules || []).map((r, i) => `
+    <div class="toggle-row">
+      <div><b>${esc(r.name || 'Trả lời tin nhắn')}</b><p class="muted">${r.matchType === 'any' ? 'Khi ai đó tự nhắn tin cho bạn' : 'Tin nhắn có chữ: ' + esc(r.keyword)}${r.useAi ? ' · AI viết' : ''}</p></div>
+      <label class="switch"><input type="checkbox" ${r.enabled !== false ? 'checked' : ''} onchange="rules.dmRules[${i}].enabled=this.checked"><span class="slider"></span></label>
+    </div>`).join('');
+}
+async function saveSettings() {
+  rules.ai = Object.assign({}, rules.ai, {
+    enabled: $('aiOn').checked,
+    persona: $('aiPersona').value,
+    goal: $('aiGoal').value,
+    model: $('aiModel').value.trim() || 'gemini-3.6-flash',
+    humanDelay: { enabled: true, minSec: parseInt($('aiDelayMin').value) || 0, maxSec: parseInt($('aiDelayMax').value) || 0 },
+  });
+  rules.settings = Object.assign({}, rules.settings, { cooldownHours: parseFloat($('cooldownHours').value) || 0 });
+  await saveRules('✅ Đã lưu cài đặt');
+  renderSettings();
 }
 
 tryLoad();
