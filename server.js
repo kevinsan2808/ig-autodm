@@ -695,7 +695,7 @@ app.get('/api/contacts', auth, async (req, res) => {
 // Find one of our posts from its Instagram link (reel/post URL), paging back through older posts.
 app.get('/api/media/resolve', auth, async (req, res) => {
   const m = String(req.query.url || '').match(/instagram\.com\/(?:[^/]+\/)?(?:reels?|p|tv)\/([A-Za-z0-9_-]+)/);
-  if (!m) return res.status(400).json({ error: 'Link không hợp lệ' });
+  if (!m) return res.status(400).json({ error: 'That is not a valid Instagram link' });
   const code = m[1];
   try {
     let url = `${GRAPH}/me/media?fields=id,caption,media_type,media_product_type,thumbnail_url,media_url,permalink,timestamp&limit=50`;
@@ -705,7 +705,7 @@ app.get('/api/media/resolve', auth, async (req, res) => {
       if (found) return res.json(found);
       url = data.paging && data.paging.next;
     }
-    res.status(404).json({ error: 'Không tìm thấy video này trong tài khoản của bạn' });
+    res.status(404).json({ error: 'Could not find this video on your account' });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
