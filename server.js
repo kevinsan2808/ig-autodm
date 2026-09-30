@@ -5,6 +5,7 @@ const express = require('express');
 const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
+const store = require('./store');
 
 const PORT = process.env.PORT || 3000;
 const GRAPH = 'https://graph.instagram.com/v23.0';
@@ -24,11 +25,24 @@ let selfIds = new Set(); // our own account ids, so we never reply to ourselves
 let selfUsername = '';
 let rules = { commentRules: [], dmRules: [], ai: { enabled: false, model: 'gemini-3.6-flash', persona: DEFAULT_PERSONA } };
 
+const DEFAULT_GATE_BUTTON = 'Send me the link 🔗';
+const DEFAULT_NOT_FOLLOWING =
+  "Looks like you're not following me yet 👀 Follow @{{me}} then tap the button again and I'll send it right over!";
+
 // ---------- rules storage ----------
+
+function newId() {
+  return crypto.randomBytes(4).toString('hex');
+}
 
 function normalizeRules() {
   if (!Array.isArray(rules.commentRules)) rules.commentRules = [];
   if (!Array.isArray(rules.dmRules)) rules.dmRules = [];
+  for (const r of [...rules.commentRules, ...rules.dmRules]) {
+    if (!r.id) r.id = newId();
+  }
+  if (!rules.settings || typeof rules.settings !== 'object') rules.settings = {};
+  if (typeof rules.settings.cooldownHours !== 'number') rules.settings.cooldownHours = 24;
   if (!rules.ai || typeof rules.ai !== 'object') rules.ai = {};
   if (typeof rules.ai.enabled !== 'boolean') rules.ai.enabled = false;
   if (!rules.ai.model) rules.ai.model = 'gemini-3.6-flash';
@@ -54,7 +68,28 @@ async function humanPause() {
   if (secs > 0) await sleep(secs * 1000);
 }
 
-function loadRules() {
+// Wait a random time between a rule's min and max seconds (e.g. "DM them ~1 min after they comment").
+async function rulePause(rule) {
+  const min = Math.max(0, Number(rule.delayMin) || 0);
+  const max = Math.max(min, Number(rule.delayMax) || 0);
+  const secs = min + Math.random() * (max - min);
+  if (secs > 0) await sleep(secs * 1000);
+}
+
+// Rules are kept in the database when one is configured, so they survive restarts.
+async function loadRules() {
+  if (store.useSupabase) {
+    try {
+      const saved = await store.getKV('rules');
+      if (saved) {
+        rules = saved;
+        normalizeRules();
+        return;
+      }
+    } catch (e) {
+      log('error', `Could not load rules from database: ${e.message}`);
+    }
+  }
   try {
     if (fs.existsSync(RULES_FILE)) {
       rules = JSON.parse(fs.readFileSync(RULES_FILE, 'utf8'));
@@ -76,12 +111,73 @@ function loadRules() {
   normalizeRules();
 }
 
-function saveRules() {
+async function saveRules() {
   try {
     fs.writeFileSync(RULES_FILE, JSON.stringify(rules, null, 2));
   } catch (e) {
     log('error', `Could not save rules.json: ${e.message}`);
   }
+  if (store.useSupabase) {
+    try {
+      await store.setKV('rules', rules);
+    } catch (e) {
+      log('error', `Could not save rules to database: ${e.message}`);
+    }
+  }
+}
+
+// ---------- per-rule stats ----------
+
+let stats = {}; // ruleId -> { triggered, dmSent, linkSent, notFollowing, cooldown }
+let statsTimer = null;
+
+async function loadStats() {
+  try {
+    stats = (await store.getKV('stats')) || {};
+  } catch (e) {
+    log('error', `Could not load stats: ${e.message}`);
+  }
+}
+
+function bump(ruleId, field) {
+  if (!ruleId) return;
+  const s = (stats[ruleId] = stats[ruleId] || {});
+  s[field] = (s[field] || 0) + 1;
+  clearTimeout(statsTimer);
+  statsTimer = setTimeout(() => {
+    store.setKV('stats', stats).catch((e) => log('error', `Could not save stats: ${e.message}`));
+  }, 3000);
+}
+
+// ---------- contacts ----------
+
+// Load (or create) a contact, apply `update`, save it. Never lets a database
+// problem stop a reply from going out.
+async function touchContact(id, username, update) {
+  let c = null;
+  try {
+    c = await store.getContact(id);
+  } catch (e) {
+    log('error', `Could not load contact: ${e.message}`);
+  }
+  const now = new Date().toISOString();
+  c = c || { id: String(id), first_seen: now, comments: 0, dms: 0, keywords: [], posts: [], last_dm_at: {} };
+  if (username) c.username = username;
+  c.last_seen = now;
+  if (!c.last_dm_at) c.last_dm_at = {};
+  if (update) update(c);
+  try {
+    await store.saveContact(c);
+  } catch (e) {
+    log('error', `Could not save contact: ${e.message}`);
+  }
+  return c;
+}
+
+function addUnique(list, value) {
+  const arr = Array.isArray(list) ? list : [];
+  if (value && !arr.includes(value)) arr.push(value);
+  return arr.slice(-50);
 }
 
 // ---------- activity log (shown in dashboard) ----------
@@ -128,18 +224,40 @@ async function fetchSelf() {
   }
 }
 
-async function sendPrivateReply(commentId, text) {
-  return igFetch(`${GRAPH}/me/messages`, {
-    method: 'POST',
-    body: JSON.stringify({ recipient: { comment_id: commentId }, message: { text } }),
-  });
+// `button` (optional) = { title, payload } shown as a tap-to-reply quick reply.
+// If Instagram rejects the button, resend as plain text asking them to reply instead.
+async function sendMessage(recipient, text, button) {
+  const message = { text };
+  if (button) message.quick_replies = [{ content_type: 'text', title: button.title.slice(0, 20), payload: button.payload }];
+  try {
+    return await igFetch(`${GRAPH}/me/messages`, { method: 'POST', body: JSON.stringify({ recipient, message }) });
+  } catch (e) {
+    if (!button) throw e;
+    log('warn', `Button not accepted (${e.message}); sending plain text instead.`);
+    return igFetch(`${GRAPH}/me/messages`, {
+      method: 'POST',
+      body: JSON.stringify({ recipient, message: { text: `${text}\n\n👉 Reply "ok" and I'll send it!` } }),
+    });
+  }
 }
 
-async function sendDM(userId, text) {
-  return igFetch(`${GRAPH}/me/messages`, {
-    method: 'POST',
-    body: JSON.stringify({ recipient: { id: userId }, message: { text } }),
-  });
+async function sendPrivateReply(commentId, text, button) {
+  return sendMessage({ comment_id: commentId }, text, button);
+}
+
+async function sendDM(userId, text, button) {
+  return sendMessage({ id: userId }, text, button);
+}
+
+// Only works after the person has messaged us or tapped a button (Meta's consent rule).
+async function checkFollows(userId) {
+  try {
+    const u = await igFetch(`${GRAPH}/${userId}?fields=username,is_user_follow_business`);
+    return { ok: true, follows: !!u.is_user_follow_business, username: u.username || '' };
+  } catch (e) {
+    log('warn', `Could not check follow status: ${e.message}`);
+    return { ok: false };
+  }
 }
 
 async function sendPublicReply(commentId, text) {
@@ -180,8 +298,20 @@ async function refreshToken() {
 // ---------- keyword matching ----------
 
 function fillTemplate(text, username) {
-  return (text || '').replaceAll('{{username}}', username || 'there');
+  return (text || '').replaceAll('{{username}}', username || 'there').replaceAll('{{me}}', selfUsername || 'me');
 }
+
+// Pick one random variant so replies don't all look identical.
+// DM variants are separated by a line containing only ---; public replies are one per line.
+function pickVariant(text, separator) {
+  const parts = (text || '')
+    .split(separator)
+    .map((s) => s.trim())
+    .filter(Boolean);
+  return parts.length ? parts[Math.floor(Math.random() * parts.length)] : '';
+}
+const DM_SEPARATOR = /^\s*---\s*$/m;
+const LINE_SEPARATOR = /\r?\n/;
 
 // ---------- conversation memory ----------
 // Remembers the last messages exchanged with each person so the AI can carry a
@@ -256,7 +386,7 @@ async function aiReply({ history, username, instruction }) {
 // and AI is configured; otherwise (or on any AI error) falls back to the template.
 // Pass `history` for multi-turn DMs; comments pass a single `incoming` message.
 async function resolveReply(rule, field, { incoming, username, history }) {
-  const template = fillTemplate(rule[field], username);
+  const template = fillTemplate(pickVariant(rule[field], DM_SEPARATOR), username);
   const useAi = rule.useAi && rules.ai && rules.ai.enabled && GEMINI_API_KEY;
   if (!useAi) return template;
   try {
@@ -313,40 +443,128 @@ async function handleComment(value) {
   }
 
   const username = from.username || '';
+  const who = `@${username || from.id}`;
+  const ruleName = rule.name || rule.keyword || 'catch-all';
+  bump(rule.id, 'triggered');
+
+  // Cooldown: don't DM the same person for the same rule again too soon.
+  const contact = await touchContact(from.id, username, (c) => {
+    c.comments = (c.comments || 0) + 1;
+    c.keywords = addUnique(c.keywords, rule.keyword || ruleName);
+    c.posts = addUnique(c.posts, mediaId);
+    c.last_text = text.slice(0, 300);
+  });
+  const hours = Number(rules.settings.cooldownHours) || 0;
+  const last = contact.last_dm_at[rule.id];
+  if (hours > 0 && last && Date.now() - Date.parse(last) < hours * 3600 * 1000) {
+    bump(rule.id, 'cooldown');
+    log('skip', `${who} already got "${ruleName}" in the last ${hours}h — skipped`);
+    return;
+  }
+
   const aiOn = rule.useAi && rules.ai && rules.ai.enabled;
+  // e.g. wait ~1 min so it doesn't feel instant; older AI rules without their own delay use the AI one
+  if (rule.delayMax === undefined && aiOn) await humanPause();
+  else await rulePause(rule);
   if (rule.dmMessage || aiOn) {
     try {
       const dmText = await resolveReply(rule, 'dmMessage', { incoming: text, username });
       if (dmText) {
-        if (aiOn) await humanPause(); // human-like pause before the DM lands
-        await sendPrivateReply(commentId, dmText);
-        log('dm', `DM sent to @${username || from.id} (rule "${rule.name || rule.keyword || 'catch-all'}"${aiOn ? ', AI' : ''})`);
+        const button = rule.requireFollow
+          ? { title: rule.gateButton || DEFAULT_GATE_BUTTON, payload: `GATE:${rule.id}` }
+          : null;
+        await sendPrivateReply(commentId, dmText, button);
+        bump(rule.id, 'dmSent');
+        await touchContact(from.id, username, (c) => {
+          c.last_dm_at[rule.id] = new Date().toISOString();
+          if (rule.requireFollow) c.pending = { ruleId: rule.id, at: new Date().toISOString() };
+        });
+        log('dm', `DM sent to ${who} (rule "${ruleName}"${aiOn ? ', AI' : ''}${rule.requireFollow ? ', follow-gated' : ''})`);
       }
     } catch (e) {
-      log('error', `DM to @${username || from.id} failed: ${e.message}`);
+      log('error', `DM to ${who} failed: ${e.message}`);
     }
   }
-  if (rule.publicReply) {
+  const publicText = pickVariant(rule.publicReply, LINE_SEPARATOR);
+  if (publicText) {
     try {
-      await sendPublicReply(commentId, fillTemplate(rule.publicReply, username));
-      log('reply', `Public reply posted under @${username || from.id}'s comment`);
+      await sendPublicReply(commentId, fillTemplate(publicText, username));
+      log('reply', `Public reply posted under ${who}'s comment`);
     } catch (e) {
       log('error', `Public reply failed: ${e.message}`);
     }
   }
 }
 
+// Follow gate: the person tapped the button (or replied) after a follow-gated DM.
+// Send the link if they follow us, otherwise ask them to follow and tap again.
+async function handleGate(senderId, ruleId) {
+  const rule = rules.commentRules.find((r) => r.id === ruleId);
+  if (!rule) return;
+  const check = await checkFollows(senderId);
+  const username = check.username || '';
+  const who = `@${username || senderId}`;
+  // If Instagram won't tell us, send the link anyway rather than leave them stuck.
+  if (!check.ok || check.follows) {
+    const linkText = fillTemplate(pickVariant(rule.linkMessage, DM_SEPARATOR), username);
+    if (linkText) await sendDM(senderId, linkText);
+    bump(rule.id, 'linkSent');
+    await touchContact(senderId, username, (c) => {
+      c.pending = null;
+      if (check.ok) c.follows = true;
+      c.dms = (c.dms || 0) + 1;
+    });
+    log('dm', `Link sent to ${who} (rule "${rule.name || rule.keyword}"${check.ok ? ', follows ✅' : ', follow status unknown'})`);
+  } else {
+    const nudge = fillTemplate(pickVariant(rule.notFollowingMessage || DEFAULT_NOT_FOLLOWING, DM_SEPARATOR), username);
+    await sendDM(senderId, nudge, { title: rule.gateButton || DEFAULT_GATE_BUTTON, payload: `GATE:${rule.id}` });
+    bump(rule.id, 'notFollowing');
+    await touchContact(senderId, username, (c) => {
+      c.follows = false;
+      c.dms = (c.dms || 0) + 1;
+    });
+    log('dm', `${who} isn't following yet — asked them to follow first`);
+  }
+}
+
 async function handleMessage(event) {
   const msg = event.message;
-  if (!msg || msg.is_echo) return; // ignore reads, reactions, and our own sent messages
+  const postback = event.postback;
+  if (msg && msg.is_echo) return; // our own sent messages
+  if (!msg && !postback) return; // reads, reactions, etc.
   const senderId = event.sender && event.sender.id;
   if (!senderId || selfIds.has(String(senderId))) return;
-  if (alreadySeen(msg.mid)) return;
+  if (alreadySeen((msg && msg.mid) || (postback && postback.mid))) return;
+
+  // Button tap or any reply from someone waiting on a follow-gated link
+  const payload = (postback && postback.payload) || (msg && msg.quick_reply && msg.quick_reply.payload) || '';
+  let gateRuleId = payload.startsWith('GATE:') ? payload.slice(5) : '';
+  if (!gateRuleId) {
+    let c = null;
+    try {
+      c = await store.getContact(senderId);
+    } catch {}
+    const pendingAge = c && c.pending ? Date.now() - Date.parse(c.pending.at) : Infinity;
+    if (pendingAge < 7 * 24 * 3600 * 1000) gateRuleId = c.pending.ruleId;
+  }
+  if (gateRuleId) {
+    try {
+      await handleGate(senderId, gateRuleId);
+    } catch (e) {
+      log('error', `Follow-gate reply to ${senderId} failed: ${e.message}`);
+    }
+    return;
+  }
+  if (!msg) return;
 
   const rule = matchRule(rules.dmRules, msg.text || '');
-  if (!rule) return;
-
   const username = await fetchUsername(senderId);
+  await touchContact(senderId, username, (c) => {
+    c.dms = (c.dms || 0) + 1;
+    if (msg.text) c.last_text = msg.text.slice(0, 300);
+  });
+  if (!rule) return;
+  bump(rule.id, 'triggered');
   const aiOn = rule.useAi && rules.ai && rules.ai.enabled;
   if (aiOn && (msg.text || '').trim()) convoPush(senderId, 'user', msg.text);
   try {
@@ -358,6 +576,7 @@ async function handleMessage(event) {
     if (!replyText) return;
     if (aiOn) await humanPause(); // human-like pause so it doesn't feel like an instant bot
     await sendDM(senderId, replyText);
+    bump(rule.id, 'dmSent');
     if (aiOn) convoPush(senderId, 'assistant', replyText);
     log('dm', `Auto-replied to DM from @${username || senderId} (rule "${rule.name || rule.keyword || 'catch-all'}"${aiOn ? ', AI' : ''})`);
   } catch (e) {
@@ -444,28 +663,38 @@ app.get('/api/status', auth, async (req, res) => {
     username: selfUsername,
     tokenSet: !!accessToken,
     aiKeySet: !!GEMINI_API_KEY,
+    database: store.useSupabase,
+    stats,
     activity: activity.slice(0, 50),
   });
 });
 
+app.get('/api/contacts', auth, async (req, res) => {
+  try {
+    res.json(await store.listContacts({ search: String(req.query.q || '') }));
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 app.get('/api/rules', auth, (req, res) => res.json(rules));
 
-app.put('/api/rules', auth, (req, res) => {
+app.put('/api/rules', auth, async (req, res) => {
   const body = req.body;
   if (!body || !Array.isArray(body.commentRules) || !Array.isArray(body.dmRules)) {
     return res.status(400).json({ error: 'Invalid rules format' });
   }
   rules = body;
   normalizeRules();
-  saveRules();
+  await saveRules();
   log('info', 'Rules updated via dashboard');
-  res.json({ ok: true });
+  res.json({ ok: true, rules });
 });
 
 // One-click: tell Meta to send this account's comments & messages to our webhook
 app.post('/api/subscribe', auth, async (req, res) => {
   try {
-    await igFetch(`${GRAPH}/me/subscribed_apps?subscribed_fields=comments,messages`, {
+    await igFetch(`${GRAPH}/me/subscribed_apps?subscribed_fields=comments,messages,messaging_postbacks`, {
       method: 'POST',
     });
     log('info', 'Account subscribed to webhooks (comments + messages) ✅');
@@ -484,9 +713,12 @@ app.post('/api/reconnect', auth, async (req, res) => {
 
 // ---------- boot ----------
 
-loadRules();
-app.listen(PORT, () => {
-  log('info', `AutoDM running on port ${PORT}`);
-  fetchSelf();
-  setInterval(refreshToken, 24 * 60 * 60 * 1000); // refresh token daily
-});
+(async () => {
+  await loadRules();
+  await loadStats();
+  app.listen(PORT, () => {
+    log('info', `AutoDM running on port ${PORT} (storage: ${store.useSupabase ? 'Supabase database' : 'local files — resets on redeploy'})`);
+    fetchSelf();
+    setInterval(refreshToken, 24 * 60 * 60 * 1000); // refresh token daily
+  });
+})();
