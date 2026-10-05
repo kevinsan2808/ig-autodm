@@ -28,7 +28,17 @@
 
   /* tabs */
   .tabs { display: flex; gap: 4px; background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 4px; margin-bottom: 20px; }
-  .tabs button { flex: 1; background: transparent; color: var(--muted); border: 0; border-radius: 9px; padding: 10px 4px; font-size: 14px; font-weight: 600; cursor: pointer; }
+  .tabs button { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; background: transparent; color: var(--muted); border: 0; border-radius: 9px; padding: 8px 4px; font-size: 12.5px; font-weight: 600; cursor: pointer; }
+  .tabs .ico { font-size: 18px; line-height: 1; }
+  .stats .st { white-space: nowrap; }
+  /* Phones: tabs become a bottom bar, like a native app. */
+  @media (max-width: 600px) {
+    .wrap { padding-bottom: 104px; }
+    .tabs { position: fixed; left: 12px; right: 12px; bottom: 12px; margin: 0; z-index: 15; box-shadow: 0 8px 28px rgba(0,0,0,.45); }
+    .thumb { width: 52px; height: 70px; font-size: 22px; }
+    .vcard { gap: 12px; }
+    .toast { bottom: 96px; }
+  }
   .tabs button.active { background: var(--accent); color: #fff; }
 
   .card { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 16px; margin-bottom: 12px; }
@@ -131,10 +141,10 @@
   </div>
 
   <div class="tabs">
-    <button data-tab="videos" class="active" onclick="showTab('videos')">📹 Video</button>
-    <button data-tab="contacts" onclick="showTab('contacts')">👥 Contacts</button>
-    <button data-tab="log" onclick="showTab('log')">📜 Activity</button>
-    <button data-tab="settings" onclick="showTab('settings')">⚙️ Settings</button>
+    <button data-tab="videos" class="active" onclick="showTab('videos')"><span class="ico">📹</span>Videos</button>
+    <button data-tab="contacts" onclick="showTab('contacts')"><span class="ico">👥</span>Contacts</button>
+    <button data-tab="log" onclick="showTab('log')"><span class="ico">📜</span>Activity</button>
+    <button data-tab="settings" onclick="showTab('settings')"><span class="ico">⚙️</span>Settings</button>
   </div>
 
   <!-- TAB: VIDEO -->
@@ -426,7 +436,7 @@ function renderVideos() {
           ${r.useAi ? '<span class="chip">🤖 AI</span>' : ''}
         </div>
         <div class="row" style="justify-content:space-between">
-          <span class="stats">${statParts.join(' · ')}</span>
+          <span class="stats">${statParts.map(x => `<span class="st">${x}</span>`).join(' · ')}</span>
           <button class="btn ghost small" onclick="openEditor(${i})">✏️ Edit</button>
         </div>
       </div>
