@@ -297,21 +297,50 @@ async function refreshToken() {
 
 // ---------- keyword matching ----------
 
-function fillTemplate(text, username, rule) {
-  return (text || '')
+// `track` = { r: reel/media id, v: message variant } is added to links that point at
+// the link hub, so its stats know which reel and which DM wording brought the click.
+function fillTemplate(text, username, rule, track) {
+  const out = (text || '')
     .replaceAll('{{username}}', username || 'there')
     .replaceAll('{{me}}', selfUsername || 'me')
     .replaceAll('{{link}}', (rule && rule.link) || '');
+  return tagHubLinks(out, track);
+}
+
+const HUB_HOST = (process.env.HUB_HOST || 'stayfocusedhuy.vercel.app').toLowerCase();
+const HUB_LINK = new RegExp(`(?:https?://)?${HUB_HOST.replace(/\./g, '\\.')}(?:/[^\\s?#]*)?(?:\\?[^\\s#]*)?`, 'gi');
+
+function tagHubLinks(text, track) {
+  if (!track || !text) return text;
+  return text.replace(HUB_LINK, (match) => {
+    // Leave sentence punctuation outside the link ("…/perfume." → "…/perfume?src=…").
+    const link = match.replace(/[.,!?;:)\]]+$/, '');
+    const tail = match.slice(link.length);
+    let url;
+    try {
+      url = new URL(/^https?:/i.test(link) ? link : `https://${link}`);
+    } catch {
+      return match;
+    }
+    if (!url.searchParams.has('src')) url.searchParams.set('src', 'ig_dm');
+    if (track.r && !url.searchParams.has('r')) url.searchParams.set('r', String(track.r));
+    if (track.v && !url.searchParams.has('v')) url.searchParams.set('v', String(track.v));
+    return url.toString() + tail;
+  });
 }
 
 // Pick one random variant so replies don't all look identical.
 // DM variants are separated by a line containing only ---; public replies are one per line.
-function pickVariant(text, separator) {
+// Pass `out` to learn which variant was used (out.index, 1-based) for A/B stats.
+function pickVariant(text, separator, out) {
   const parts = (text || '')
     .split(separator)
     .map((s) => s.trim())
     .filter(Boolean);
-  return parts.length ? parts[Math.floor(Math.random() * parts.length)] : '';
+  if (!parts.length) return '';
+  const i = Math.floor(Math.random() * parts.length);
+  if (out) out.index = parts.length > 1 ? i + 1 : null;
+  return parts[i];
 }
 const DM_SEPARATOR = /^\s*---\s*$/m;
 const LINE_SEPARATOR = /\r?\n/;
@@ -388,13 +417,18 @@ async function aiReply({ history, username, instruction }) {
 // Decide what to actually send for a rule + field. Uses AI when the rule opts in
 // and AI is configured; otherwise (or on any AI error) falls back to the template.
 // Pass `history` for multi-turn DMs; comments pass a single `incoming` message.
-async function resolveReply(rule, field, { incoming, username, history }) {
-  const template = fillTemplate(pickVariant(rule[field], DM_SEPARATOR), username, rule);
+async function resolveReply(rule, field, { incoming, username, history, track }) {
+  const pick = {};
+  const text = pickVariant(rule[field], DM_SEPARATOR, pick);
+  if (track && track.v == null) track.v = pick.index;
+  const template = fillTemplate(text, username, rule, track);
   const useAi = rule.useAi && rules.ai && rules.ai.enabled && GEMINI_API_KEY;
   if (!useAi) return template;
   try {
     const hist = history && history.length ? history : [{ role: 'user', text: incoming || '' }];
-    return await aiReply({ history: hist, username, instruction: rule[field] || '' });
+    const reply = await aiReply({ history: hist, username, instruction: rule[field] || '' });
+    if (track) track.v = 'ai';
+    return tagHubLinks(reply, track);
   } catch (e) {
     log('warn', `AI reply failed (${e.message}); using template instead.`);
     return template;
@@ -449,6 +483,9 @@ async function handleComment(value) {
   const who = `@${username || from.id}`;
   const ruleName = rule.name || rule.keyword || 'catch-all';
   bump(rule.id, 'triggered');
+  const event = (type, extra) =>
+    store.logEvent({ type, media_id: mediaId || null, rule_id: rule.id, rule_name: ruleName, user_id: String(from.id), ...extra });
+  event('comment');
 
   // Cooldown: don't DM the same person for the same rule again too soon.
   const contact = await touchContact(from.id, username, (c) => {
@@ -461,6 +498,7 @@ async function handleComment(value) {
   const last = contact.last_dm_at[rule.id];
   if (hours > 0 && last && Date.now() - Date.parse(last) < hours * 3600 * 1000) {
     bump(rule.id, 'cooldown');
+    event('cooldown');
     log('skip', `${who} already got "${ruleName}" in the last ${hours}h — skipped`);
     return;
   }
@@ -471,16 +509,20 @@ async function handleComment(value) {
   else await rulePause(rule);
   if (rule.dmMessage || aiOn) {
     try {
-      const dmText = await resolveReply(rule, 'dmMessage', { incoming: text, username });
+      const track = { r: mediaId, v: null };
+      const dmText = await resolveReply(rule, 'dmMessage', { incoming: text, username, track });
       if (dmText) {
         const button = rule.requireFollow
           ? { title: rule.gateButton || DEFAULT_GATE_BUTTON, payload: `GATE:${rule.id}` }
           : null;
         await sendPrivateReply(commentId, dmText, button);
         bump(rule.id, 'dmSent');
+        event('dm', { variant: track.v == null ? null : String(track.v) });
         await touchContact(from.id, username, (c) => {
           c.last_dm_at[rule.id] = new Date().toISOString();
-          if (rule.requireFollow) c.pending = { ruleId: rule.id, at: new Date().toISOString() };
+          if (rule.requireFollow) {
+            c.pending = { ruleId: rule.id, at: new Date().toISOString(), mediaId: mediaId || null, v: track.v };
+          }
         });
         log('dm', `DM sent to ${who} (rule "${ruleName}"${aiOn ? ', AI' : ''}${rule.requireFollow ? ', follow-gated' : ''})`);
       }
@@ -509,11 +551,28 @@ async function handleGate(senderId, ruleId) {
   const check = await checkFollows(senderId);
   const username = check.username || '';
   const who = `@${username || senderId}`;
+  // The reel and DM variant that started this, saved when the gated DM went out.
+  let pending = null;
+  try {
+    const c = await store.getContact(senderId);
+    if (c && c.pending && c.pending.ruleId === ruleId) pending = c.pending;
+  } catch {}
+  const track = { r: pending && pending.mediaId, v: pending && pending.v };
+  const event = (type) =>
+    store.logEvent({
+      type,
+      media_id: track.r || null,
+      rule_id: rule.id,
+      rule_name: rule.name || rule.keyword || 'catch-all',
+      user_id: String(senderId),
+      variant: track.v == null ? null : String(track.v),
+    });
   // If Instagram won't tell us, send the link anyway rather than leave them stuck.
   if (!check.ok || check.follows) {
-    const linkText = fillTemplate(pickVariant(rule.linkMessage, DM_SEPARATOR), username, rule);
+    const linkText = fillTemplate(pickVariant(rule.linkMessage, DM_SEPARATOR), username, rule, track);
     if (linkText) await sendDM(senderId, linkText);
     bump(rule.id, 'linkSent');
+    event('link');
     await touchContact(senderId, username, (c) => {
       c.pending = null;
       if (check.ok) c.follows = true;
@@ -524,6 +583,7 @@ async function handleGate(senderId, ruleId) {
     const nudge = fillTemplate(pickVariant(rule.notFollowingMessage || DEFAULT_NOT_FOLLOWING, DM_SEPARATOR), username, rule);
     await sendDM(senderId, nudge, { title: rule.gateButton || DEFAULT_GATE_BUTTON, payload: `GATE:${rule.id}` });
     bump(rule.id, 'notFollowing');
+    event('not_following');
     await touchContact(senderId, username, (c) => {
       c.follows = false;
       c.dms = (c.dms || 0) + 1;

@@ -114,4 +114,21 @@ async function listContacts({ search = '', limit = 2000 } = {}) {
   );
 }
 
-module.exports = { useSupabase, getKV, setKV, getContact, saveContact, listContacts };
+// ---------- funnel events ----------
+// One row per step (comment matched, DM sent, link sent…) with the reel it came from,
+// so Reel Lab can show reel → comment → DM → link → click. Never blocks a reply:
+// if the dm_events table is missing the error is reported once and logging stops.
+
+let eventsDisabled = false;
+
+async function logEvent(row) {
+  if (!useSupabase || eventsDisabled) return;
+  try {
+    await sb('dm_events', { method: 'POST', body: row, prefer: 'return=minimal' });
+  } catch (e) {
+    if (/dm_events/.test(e.message)) eventsDisabled = true;
+    console.error(`[events] ${e.message}${eventsDisabled ? ' (event logging turned off until restart)' : ''}`);
+  }
+}
+
+module.exports = { useSupabase, getKV, setKV, getContact, saveContact, listContacts, logEvent };
