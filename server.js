@@ -491,7 +491,9 @@ async function handleComment(value) {
   const publicText = pickVariant(rule.publicReply, LINE_SEPARATOR);
   if (publicText) {
     try {
-      await sendPublicReply(commentId, fillTemplate(publicText, username, rule));
+      const reply = fillTemplate(publicText, username, rule);
+      // Always say where to look: DMs from accounts they don't follow land in requests or spam.
+      await sendPublicReply(commentId, /request|spam/i.test(reply) ? reply : `${reply} (if you don't see it, check your message requests or spam)`);
       log('reply', `Public reply posted under ${who}'s comment`);
     } catch (e) {
       log('error', `Public reply failed: ${e.message}`);
