@@ -787,6 +787,28 @@ app.put('/api/rules', auth, async (req, res) => {
   res.json({ ok: true, rules });
 });
 
+// Re-run a comment the bot missed (e.g. while the token was broken): finds the person's
+// latest comment on a video and handles it like a fresh webhook.
+app.post('/api/replay', auth, async (req, res) => {
+  const { mediaId, username } = req.body || {};
+  if (!mediaId || !username) return res.status(400).json({ error: 'mediaId and username are required' });
+  try {
+    let url = `${GRAPH}/${mediaId}/comments?fields=id,text,from,username,timestamp&limit=50`;
+    let found;
+    for (let page = 0; url && !found && page < 20; page++) {
+      const data = await igFetch(url);
+      found = (data.data || []).find((c) => (c.from && c.from.username) === username || c.username === username);
+      url = data.paging && data.paging.next;
+    }
+    if (!found || !found.from) return res.status(404).json({ error: `No comment from @${username} found on this video` });
+    log('info', `Replaying missed comment from @${username}`);
+    handleComment({ id: found.id, text: found.text, from: found.from, media: { id: mediaId } }).catch((e) => log('error', e.message));
+    res.json({ ok: true, comment: { id: found.id, text: found.text } });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // One-click: tell Meta to send this account's comments & messages to our webhook
 app.post('/api/subscribe', auth, async (req, res) => {
   try {
