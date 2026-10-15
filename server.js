@@ -545,6 +545,13 @@ async function handleComment(value) {
 
 // Follow gate: the person tapped the button (or replied) after a follow-gated DM.
 // Send the link if they follow us, otherwise ask them to follow and tap again.
+// Sent a few seconds after the link (one variant picked at random).
+const LINK_FOLLOW_UP = [
+  "if you have any question or anything I can help with lmk, have a good day 🙏",
+  "if you got any questions or need help with anything just lmk, have a good one 🙌",
+  "lmk if you have any question or anything I can help with, have a great day 🤝",
+].join('\n---\n');
+
 async function handleGate(senderId, ruleId) {
   const rule = rules.commentRules.find((r) => r.id === ruleId);
   if (!rule) return;
@@ -571,6 +578,15 @@ async function handleGate(senderId, ruleId) {
   if (!check.ok || check.follows) {
     const linkText = fillTemplate(pickVariant(rule.linkMessage, DM_SEPARATOR), username, rule, track);
     if (linkText) await sendDM(senderId, linkText);
+    // A friendly follow-up so the chat doesn't end at the link (skipped if the link message already offers help).
+    if (linkText && !/lmk|let me know|any question/i.test(linkText)) {
+      await sleep(3000 + Math.random() * 4000);
+      try {
+        await sendDM(senderId, pickVariant(LINK_FOLLOW_UP, DM_SEPARATOR));
+      } catch (e) {
+        log('warn', `Follow-up after link failed: ${e.message}`);
+      }
+    }
     bump(rule.id, 'linkSent');
     event('link');
     await touchContact(senderId, username, (c) => {
