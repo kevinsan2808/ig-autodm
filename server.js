@@ -445,9 +445,42 @@ function matchRule(ruleList, text, mediaId) {
     if (r.matchType === 'any') continue;
     const kw = (r.keyword || '').toLowerCase().trim();
     if (!kw) continue;
-    if (r.matchType === 'exact' ? t === kw : t.includes(kw)) return r;
+    if (r.matchType === 'exact' ? t === kw : containsKeyword(t, kw)) return r;
+  }
+  // Nothing matched exactly: allow one typo ("shhet" -> "sheet") on keywords of 5+ letters.
+  const words = t.split(/[^\p{L}\p{N}]+/u).filter(Boolean);
+  for (const r of candidates) {
+    if (r.matchType === 'any') continue;
+    const kw = (r.keyword || '').toLowerCase().trim();
+    if (kw.length < 5) continue;
+    const n = kw.split(/\s+/).length;
+    for (let i = 0; i + n <= words.length; i++) {
+      const chunk = words.slice(i, i + n).join(' ');
+      if (r.matchType === 'exact' && words.length !== n) continue;
+      if (editDistance(chunk, kw) <= 1) return r;
+    }
   }
   return candidates.find((r) => r.matchType === 'any') || null;
+}
+
+// Short keywords ("list") must be a whole word so "listen" doesn't count; longer ones match anywhere.
+function containsKeyword(text, kw) {
+  if (kw.length >= 5) return text.includes(kw);
+  const esc = kw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return new RegExp(`(^|[^\\p{L}\\p{N}])${esc}s?($|[^\\p{L}\\p{N}])`, 'u').test(text);
+}
+
+function editDistance(a, b) {
+  if (Math.abs(a.length - b.length) > 1) return 2;
+  let prev = Array.from({ length: b.length + 1 }, (_, j) => j);
+  for (let i = 1; i <= a.length; i++) {
+    const cur = [i];
+    for (let j = 1; j <= b.length; j++) {
+      cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+    }
+    prev = cur;
+  }
+  return prev[b.length];
 }
 
 // ---------- webhook handling ----------
