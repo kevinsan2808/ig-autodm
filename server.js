@@ -540,6 +540,7 @@ async function handleComment(value) {
   // e.g. wait ~1 min so it doesn't feel instant; older AI rules without their own delay use the AI one
   if (rule.delayMax === undefined && aiOn) await humanPause();
   else await rulePause(rule);
+  let dmFailed = false;
   if (rule.dmMessage || aiOn) {
     try {
       const track = { r: mediaId, v: null };
@@ -560,10 +561,13 @@ async function handleComment(value) {
         log('dm', `DM sent to ${who} (rule "${ruleName}"${aiOn ? ', AI' : ''}${rule.requireFollow ? ', follow-gated' : ''})`);
       }
     } catch (e) {
+      dmFailed = true;
       log('error', `DM to ${who} failed: ${e.message}`);
     }
   }
-  const publicText = pickVariant(rule.publicReply, LINE_SEPARATOR);
+  // Don't tell them to "check your DMs" when nothing was sent.
+  const publicText = dmFailed ? '' : pickVariant(rule.publicReply, LINE_SEPARATOR);
+  if (dmFailed) log('skip', `No public reply under ${who}'s comment because the DM failed`);
   if (publicText) {
     try {
       const reply = fillTemplate(publicText, username, rule);
