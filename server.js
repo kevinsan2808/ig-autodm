@@ -855,6 +855,7 @@ app.post('/api/replay', auth, async (req, res) => {
     }
     if (!found || !found.from) return res.status(404).json({ error: `No comment from @${username} found on this video` });
     log('info', `Replaying missed comment from @${username}`);
+    seen.delete(found.id); // it was marked seen when it first came in and matched nothing
     handleComment({ id: found.id, text: found.text, from: found.from, media: { id: mediaId } }).catch((e) => log('error', e.message));
     res.json({ ok: true, comment: { id: found.id, text: found.text } });
   } catch (e) {
