@@ -13,6 +13,15 @@ const VERIFY_TOKEN = process.env.VERIFY_TOKEN || '';
 const APP_SECRET = process.env.APP_SECRET || '';
 const DASHBOARD_PASSWORD = process.env.DASHBOARD_PASSWORD || '';
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
+// Bio mode: Instagram has blocked our DMs, so skip them and point commenters to the link in bio.
+// Turn off by setting DM_PAUSED=0 on Render (or flipping the default here).
+const DM_PAUSED = (process.env.DM_PAUSED || '1') !== '0';
+const BIO_REPLY = [
+  'check the link in my bio 🔗 everything is there',
+  'it’s all in the link in my bio 🔗',
+  'link in my bio has it all 🔗 go check it out',
+  'just tap the link in my bio, it’s all there 🙌',
+].join('\n');
 const RULES_FILE = path.join(__dirname, 'rules.json');
 
 const DEFAULT_PERSONA =
@@ -536,6 +545,17 @@ async function handleComment(value) {
     return;
   }
 
+  if (DM_PAUSED) {
+    await rulePause(rule);
+    try {
+      await sendPublicReply(commentId, fillTemplate(pickVariant(BIO_REPLY, LINE_SEPARATOR), username, rule));
+      log('reply', `Bio mode: told ${who} to check the link in bio (rule "${ruleName}")`);
+    } catch (e) {
+      log('error', `Public reply failed: ${e.message}`);
+    }
+    return;
+  }
+
   const aiOn = rule.useAi && rules.ai && rules.ai.enabled;
   // e.g. wait ~1 min so it doesn't feel instant; older AI rules without their own delay use the AI one
   if (rule.delayMax === undefined && aiOn) await humanPause();
@@ -671,6 +691,7 @@ async function handleMessage(event) {
   const msg = event.message;
   const postback = event.postback;
   if (msg && msg.is_echo) return; // our own sent messages
+  if (DM_PAUSED) return; // Instagram is blocking our DMs; don't keep trying
   if (!msg && !postback) return; // reads, reactions, etc.
   const senderId = event.sender && event.sender.id;
   if (!senderId || selfIds.has(String(senderId))) return;
