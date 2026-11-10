@@ -565,9 +565,22 @@ async function handleComment(value) {
       log('error', `DM to ${who} failed: ${e.message}`);
     }
   }
-  // Don't tell them to "check your DMs" when nothing was sent.
-  const publicText = dmFailed ? '' : pickVariant(rule.publicReply, LINE_SEPARATOR);
-  if (dmFailed) log('skip', `No public reply under ${who}'s comment because the DM failed`);
+  // Instagram sometimes refuses the private reply (teen accounts, DMs turned off, hidden comment).
+  // Ask them to message us first; their next DM picks the rule back up via contact.pending.
+  if (dmFailed) {
+    await touchContact(from.id, username, (c) => {
+      c.pending = { ruleId: rule.id, at: new Date().toISOString(), mediaId: mediaId || null, v: null, fallback: true };
+    });
+    try {
+      const kw = rule.keyword || 'hi';
+      await sendPublicReply(commentId, fillTemplate(pickVariant(DM_BLOCKED_REPLY, LINE_SEPARATOR).replace(/\{kw\}/g, kw), username, rule));
+      log('reply', `Couldn't DM ${who}, asked them under the comment to DM "${kw}" first`);
+    } catch (e) {
+      log('error', `Fallback public reply failed: ${e.message}`);
+    }
+    return;
+  }
+  const publicText = pickVariant(rule.publicReply, LINE_SEPARATOR);
   if (publicText) {
     try {
       const reply = fillTemplate(publicText, username, rule);
@@ -579,6 +592,13 @@ async function handleComment(value) {
     }
   }
 }
+
+// Posted under the comment when Instagram won't let us DM them first ({kw} = the rule's keyword).
+const DM_BLOCKED_REPLY = [
+  `Instagram won't let me DM you first 😕 send me "{kw}" in DM and I'll send it right away`,
+  `IG blocked my DM to you 😅 just DM me "{kw}" and I'll send it over`,
+  `couldn't DM you (IG blocked it) 🙏 send me "{kw}" in DM and you'll get it right away`,
+].join('\n');
 
 // Follow gate: the person tapped the button (or replied) after a follow-gated DM.
 // Send the link if they follow us, otherwise ask them to follow and tap again.
@@ -612,8 +632,10 @@ async function handleGate(senderId, ruleId) {
       variant: track.v == null ? null : String(track.v),
     });
   // If Instagram won't tell us, send the link anyway rather than leave them stuck.
-  if (!check.ok || check.follows) {
-    const linkText = fillTemplate(pickVariant(rule.linkMessage, DM_SEPARATOR), username, rule, track);
+  if (!check.ok || check.follows || !rule.requireFollow) {
+    const linkText = rule.requireFollow || rule.linkMessage
+      ? fillTemplate(pickVariant(rule.linkMessage, DM_SEPARATOR), username, rule, track)
+      : await resolveReply(rule, 'dmMessage', { incoming: '', username, track });
     if (linkText) await sendDM(senderId, linkText);
     // A friendly follow-up so the chat doesn't end at the link (skipped if the link message already offers help).
     if (linkText && !/lmk|let me know|any question/i.test(linkText)) {
@@ -676,6 +698,22 @@ async function handleMessage(event) {
   if (!msg) return;
 
   const rule = matchRule(rules.dmRules, msg.text || '');
+  // No DM rule, but a short message with a comment keyword ("bad", "sheet"): run that comment rule here.
+  const dmText = (msg.text || '').trim();
+  if (!rule && dmText && dmText.split(/\s+/).length <= 4) {
+    const cr = matchRule((rules.commentRules || []).filter((r) => r.matchType !== 'any' && !r.mediaId), dmText);
+    if (cr) {
+      await touchContact(senderId, '', (c) => {
+        c.pending = { ruleId: cr.id, at: new Date().toISOString(), mediaId: null, v: null };
+      });
+      try {
+        await handleGate(senderId, cr.id);
+      } catch (e) {
+        log('error', `Keyword DM reply to ${senderId} failed: ${e.message}`);
+      }
+      return;
+    }
+  }
   const username = await fetchUsername(senderId);
   await touchContact(senderId, username, (c) => {
     c.dms = (c.dms || 0) + 1;
