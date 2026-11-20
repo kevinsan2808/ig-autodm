@@ -29,7 +29,11 @@ const DEFAULT_PERSONA =
   'Be warm, casual and helpful. Nudge people to follow and to check the link when relevant, ' +
   'but never sound like a pushy salesperson.';
 
-let accessToken = process.env.IG_ACCESS_TOKEN || '';
+// The token from the env var is the "seed". Refreshed tokens are saved in the KV store,
+// tagged with the seed they came from, so a restart keeps the refreshed token, and a
+// new seed pasted into Render still wins over an old saved one.
+const ENV_TOKEN = process.env.IG_ACCESS_TOKEN || '';
+let accessToken = ENV_TOKEN;
 let selfIds = new Set(); // our own account ids, so we never reply to ourselves
 let selfUsername = '';
 let rules = { commentRules: [], dmRules: [], ai: { enabled: false, model: 'gemini-3.6-flash', persona: DEFAULT_PERSONA } };
@@ -295,6 +299,8 @@ async function refreshToken() {
     const data = await res.json();
     if (data.access_token) {
       accessToken = data.access_token;
+      await store.setKV('ig_token', { token: accessToken, from: ENV_TOKEN, saved_at: new Date().toISOString() })
+        .catch((e) => log('warn', `Could not save refreshed token: ${e.message}`));
       log('info', 'Access token refreshed (valid for another 60 days).');
     } else if (data.error) {
       log('warn', `Token refresh skipped: ${data.error.message}`);
@@ -947,6 +953,15 @@ app.post('/api/reconnect', auth, async (req, res) => {
 (async () => {
   await loadRules();
   await loadStats();
+  try {
+    const saved = await store.getKV('ig_token');
+    if (saved && saved.token && ENV_TOKEN && saved.from === ENV_TOKEN) {
+      accessToken = saved.token;
+      log('info', 'Using the refreshed access token saved from the last run.');
+    }
+  } catch (e) {
+    log('warn', `Could not load saved token, using IG_ACCESS_TOKEN: ${e.message}`);
+  }
   app.listen(PORT, () => {
     log('info', `AutoDM running on port ${PORT} (storage: ${store.useSupabase ? 'Supabase database' : 'local files — resets on redeploy'})`);
     fetchSelf();
